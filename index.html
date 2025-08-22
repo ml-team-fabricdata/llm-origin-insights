@@ -4,103 +4,569 @@
   <meta charset="utf-8" />
   <title>Fabric LLM</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root{
-      --bg:#0f172a; --panel:#0b1220; --card:#111827; --text:#e5e7eb; --muted:#94a3b8;
-      --accent:#22d3ee; --chip:#1f2937; --border:#1f2937; --bubble:#0f172a; --you:#1f2937;
+      /* Fabric Brand Colors */
+      --fabric-red: #DA344A;
+      --fabric-dark: #171A1F;
+      --fabric-purple: #7600BF;
+      --fabric-pink: #F11E5A;
+      --fabric-orange: #F75830;
+      
+      /* UI Colors based on Fabric palette */
+      --bg: #0f0f0f;
+      --panel: var(--fabric-dark);
+      --card: #1a1d23;
+      --text: #ffffff;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
+      --accent: var(--fabric-red);
+      --accent-hover: #c12d42;
+      --border: #27272a;
+      --border-light: #3f3f46;
+      --bubble-user: var(--fabric-red);
+      --bubble-assistant: var(--card);
+      --input-bg: #18181b;
+      --gradient-bg: linear-gradient(135deg, var(--fabric-purple) 0%, var(--fabric-pink) 50%, var(--fabric-orange) 100%);
     }
-    html,body{height:100%}
-    body{margin:0;background:var(--bg);color:var(--text);font-family: ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans","Liberation Sans","Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol",sans-serif;}
-    a{color:var(--accent);text-decoration:none}
-    .layout{display:grid;grid-template-columns:280px 1fr;height:100%}
-    @media (max-width: 920px){.layout{grid-template-columns:1fr}.sidebar{position:fixed;inset:0 30% 0 0;transform:translateX(-100%);transition:.2s;z-index:40}.sidebar.open{transform:none}}
-    .sidebar{background:var(--panel);border-right:1px solid var(--border);padding:16px;overflow:auto}
-    .sidebar h2{font-size:14px;color:var(--muted);margin:0 0 8px}
-    .sidebar .row{display:flex;gap:8px;margin-bottom:8px}
-    .sidebar input[type=text]{width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text)}
-    .sidebar button{background:#111827;border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);cursor:pointer}
-    .sidebar .small{font-size:12px;color:var(--muted)}
-    .toggle{display:none}
-    @media (max-width: 920px){.toggle{display:block;position:fixed;z-index:50;top:10px;left:10px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 10px;color:var(--text);}}
 
-    .main{display:flex;flex-direction:column;height:100%}
-    header{display:flex;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
-    header img{width:32px;height:32px;border-radius:50%;object-fit:cover}
-    header .grow{flex:1}
-    header .name{font-weight:600}
-    header .muted{color:var(--muted);font-size:12px}
+    * {
+      box-sizing: border-box;
+    }
 
-    .chat{flex:1;overflow:auto;padding:20px}
-    .msg{max-width:980px;margin:0 auto 14px;display:flex;gap:12px}
-    .msg .bubble{padding:14px 16px;border-radius:14px;background:var(--card);border:1px solid var(--border);white-space:pre-wrap;line-height:1.5}
-    .msg.you .bubble{background:var(--you)}
-    .msg .role{width:28px;flex:none;opacity:.8}
-    .msg .role img{width:28px;height:28px;border-radius:50%}
-    .msg .role .bot{display:inline-block;width:28px;height:28px;border-radius:50%;background:var(--chip);text-align:center;line-height:28px;color:var(--muted);font-weight:700}
-    .typing{opacity:.7;font-style:italic}
-    .list{margin-top:8px}
-    .list li{margin:3px 0;color:var(--muted)}
-    .footer{padding:14px;border-top:1px solid var(--border);background:linear-gradient(180deg,rgba(15,23,42,.6),rgba(15,23,42,1))}
-    .composer{max-width:980px;margin:0 auto;display:flex;gap:10px}
-    textarea{flex:1;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;color:var(--text);height:56px;resize:none}
-    .send{background:var(--accent);border:0;color:#001018;border-radius:12px;padding:0 16px;font-weight:700;cursor:pointer}
-    .lang{background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:0 10px}
-    .tip{max-width:980px;margin:8px auto 0;color:var(--muted);font-size:12px}
-    .hidden{display:none}
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      height: 100vh;
+    }
+
+    @media (max-width: 920px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        position: fixed;
+        inset: 0 30% 0 0;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 40;
+        box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      }
+      .sidebar.open {
+        transform: none;
+      }
+    }
+
+    .sidebar {
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-header img {
+      width: 40px;
+      height: 40px;
+    }
+
+    .sidebar-header .brand {
+      font-weight: 700;
+      font-size: 18px;
+      background: var(--gradient-bg);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .sidebar h2 {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin: 24px 0 12px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .sidebar h2:first-of-type {
+      margin-top: 0;
+    }
+
+    .sidebar .row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+
+    .sidebar input[type=text] {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+
+    .sidebar input[type=text]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .sidebar button {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 16px;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .sidebar button:hover {
+      background: var(--border);
+      border-color: var(--border-light);
+    }
+
+    .sidebar .small {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: var(--input-bg);
+      border-radius: 12px;
+      margin-bottom: 8px;
+    }
+
+    .user-info img {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .user-info .details {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .user-info .name {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 2px;
+    }
+
+    .user-info .email {
+      font-size: 12px;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .toggle {
+      display: none;
+    }
+
+    @media (max-width: 920px) {
+      .toggle {
+        display: flex;
+        position: fixed;
+        z-index: 50;
+        top: 16px;
+        left: 16px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px;
+        color: var(--text);
+        cursor: pointer;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+      }
+    }
+
+    .main {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: var(--bg);
+    }
+
+    .main-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .main-header .logo-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .main-header .product-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+    }
+
+    .main-header .title {
+      font-weight: 600;
+      font-size: 16px;
+    }
+
+    .main-header .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .lang-selector {
+      background: var(--input-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      scroll-behavior: smooth;
+    }
+
+    .chat::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .chat::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .chat::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    .msg {
+      max-width: 768px;
+      margin: 0 auto 24px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .msg.you {
+      flex-direction: row-reverse;
+    }
+
+    .msg .avatar {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .msg .avatar img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .msg .avatar.bot {
+      background: var(--gradient-bg);
+      color: white;
+    }
+
+    .msg .bubble {
+      padding: 16px 20px;
+      border-radius: 18px;
+      max-width: 100%;
+      word-wrap: break-word;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .msg:not(.you) .bubble {
+      background: var(--bubble-assistant);
+      border: 1px solid var(--border);
+      border-top-left-radius: 4px;
+    }
+
+    .msg.you .bubble {
+      background: var(--bubble-user);
+      color: white;
+      border-top-right-radius: 4px;
+    }
+
+    .msg .bubble b {
+      font-weight: 600;
+    }
+
+    .typing {
+      opacity: 0.7;
+      font-style: italic;
+    }
+
+    .footer {
+      padding: 24px;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .composer {
+      max-width: 768px;
+      margin: 0 auto;
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    .input-container {
+      flex: 1;
+      position: relative;
+    }
+
+    textarea {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+      resize: none;
+      min-height: 52px;
+      max-height: 200px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    textarea::placeholder {
+      color: var(--text-muted);
+    }
+
+    .send {
+      background: var(--accent);
+      border: 0;
+      color: white;
+      border-radius: 12px;
+      padding: 16px 20px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.2s;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .send:hover {
+      background: var(--accent-hover);
+    }
+
+    .send:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .tip {
+      max-width: 768px;
+      margin: 12px auto 0;
+      color: var(--text-muted);
+      font-size: 12px;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    /* Welcome message styling */
+    .welcome-msg {
+      text-align: center;
+      padding: 48px 24px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .welcome-msg .logo {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 24px;
+      background: var(--gradient-bg);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .welcome-msg h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0 0 12px 0;
+      background: var(--gradient-bg);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .welcome-msg p {
+      color: var(--text-secondary);
+      margin: 0;
+      font-size: 16px;
+    }
   </style>
 </head>
 <body>
-<button class="toggle" id="btnSidebar">☰</button>
+<button class="toggle" id="btnSidebar">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <line x1="3" y1="6" x2="21" y2="6"></line>
+    <line x1="3" y1="12" x2="21" y2="12"></line>
+    <line x1="3" y1="18" x2="21" y2="18"></line>
+  </svg>
+</button>
+
 <div class="layout">
   <aside class="sidebar" id="sidebar">
+    <!-- Added branded header with company logo -->
+    <div class="sidebar-header">
+      <img src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo_company-zTicNXkHyb0uvaEHgcpcXdk0tWMgqo.png" alt="Fabric Logo">
+      <div class="brand">Fabric LLM</div>
+    </div>
+
     <h2 id="hSession">Sesión</h2>
-    <div class="row">
-      <img id="avatarSide" src="" alt="avatar" style="width:28px;height:28px;border-radius:50%">
-      <div>
-        <div id="nameSide" style="font-size:13px;font-weight:600">—</div>
-        <div id="emailSide" class="small">—</div>
+    <div class="user-info">
+      <img id="avatarSide" src="/placeholder.svg" alt="avatar">
+      <div class="details">
+        <div id="nameSide" class="name">—</div>
+        <div id="emailSide" class="email">—</div>
       </div>
     </div>
 
-    <h2 id="hApi" style="margin-top:14px">API base</h2>
-    <div class="row"><input id="apiBase" type="text" placeholder="https://&lt;apprunner&gt;.awsapprunner.com"></div>
+    <h2 id="hApi" style="margin-top:24px">API base</h2>
+    <div class="row">
+      <input id="apiBase" type="text" placeholder="https://&lt;apprunner&gt;.awsapprunner.com">
+    </div>
     <div class="row">
       <button id="btnSave">Guardar</button>
       <button id="btnPing">Ping</button>
     </div>
-    <div id="pingOut" class="small">—</div>
+    <div id="pingOut" class="small" style="margin-top: 8px;">—</div>
 
-    <h2 id="hActions" style="margin-top:14px">Acciones</h2>
+    <h2 id="hActions" style="margin-top:24px">Acciones</h2>
     <div class="row">
       <button id="btnLogout" style="width:100%">Salir</button>
     </div>
-    <div id="tokensNote" class="small">Tokens se guardan en sessionStorage.</div>
+    <div id="tokensNote" class="small" style="margin-top: 8px;">Tokens se guardan en sessionStorage.</div>
 
-    <h2 id="hAbout" style="margin-top:14px">Acerca</h2>
+    <h2 id="hAbout" style="margin-top:24px">Acerca</h2>
     <div id="aboutText" class="small">Interfaz de chat para Origin Insights LLM.</div>
   </aside>
 
   <section class="main">
-    <header>
-      <img id="userAvatar" alt="avatar"/>
-      <div class="grow">
-        <div class="name" id="userName">—</div>
-        <div class="muted" id="userEmail">—</div>
+    <!-- Updated header with product logo and modern styling -->
+    <header class="main-header">
+      <div class="logo-section">
+        <img src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo_product-TNCONyzXY4NagIrQRZxUaevcEwLGtZ.png" alt="Product Logo" class="product-logo">
+        <div class="title">Origin Insights</div>
       </div>
-      <select id="selLang" class="lang">
-        <option value="es">es</option>
-        <option value="en">en</option>
-      </select>
+      <div class="controls">
+        <select id="selLang" class="lang-selector">
+          <option value="es">ES</option>
+          <option value="en">EN</option>
+        </select>
+      </div>
     </header>
 
     <div class="chat" id="chat"></div>
 
     <div class="footer">
       <div class="composer">
-        <textarea id="input" placeholder="Escribe tu consulta… (Shift+Enter = nueva línea)"></textarea>
-        <button class="send" id="btnSend">Enviar</button>
+        <div class="input-container">
+          <textarea id="input" placeholder="Escribe tu consulta… (Shift+Enter = nueva línea)" rows="1"></textarea>
+        </div>
+        <button class="send" id="btnSend">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22,2 15,22 11,13 2,9 22,2"></polygon>
+          </svg>
+        </button>
       </div>
-      <div id="tip" class="tip">Consejo: puedes escribir un título (“Conclave 2024 en Argentina”), pedir dónde ver en un país, o consultar popularidad (HITS).</div>
+      <div id="tip" class="tip">Consejo: puedes escribir un título ("Conclave 2024"), pedir dónde ver en un país, o consultar popularidad (HITS).</div>
     </div>
   </section>
 </div>
@@ -149,8 +615,8 @@ const I18N = {
     send: "Send",
     tip: "Tip: try a title (“Conclave 2024 in Argentina”), ask where to watch in a country, or check popularity (HITS).",
     typing: "Typing…",
-    greet: (name)=> `Hi ${escapeHtml(name||"")}! I’m Fabric Data’s virtual assistant. I can help you explore our data on streaming availability and popularity (HITS). What would you like to discover today?`,
-    identity: "I’m Fabric Data’s virtual assistant, powered by generative AI with Fabric Origin Insights data.",
+    greet: (name)=> `Hi ${escapeHtml(name||"")}! I'm Fabric Data's virtual assistant. I can help you explore our data on streaming availability and popularity (HITS). What would you like to discover today?`,
+    identity: "I'm Fabric Data's virtual assistant, powered by generative AI with Fabric Origin Insights data.",
     needApi: "Set the API base in the sidebar.",
     errorConnect: "There was an error connecting to the service."
   }
@@ -205,10 +671,12 @@ function addMsg({role="assistant", html=""}){
   const row = document.createElement("div");
   row.className = "msg " + (role==="user"?"you":"");
   row.innerHTML = `
-    <div class="role">${role==="user"
-      ? `<img src="${escapeHtml(session.profile?.picture || fallbackAvatar(session.profile?.name || session.profile?.email))}" alt="u">`
-      : `<span class="bot">F</span>`
-    }</div>
+    <div class="avatar ${role==="user"?"":"bot"}">
+      ${role==="user"
+        ? `<img src="${escapeHtml(session.profile?.picture || fallbackAvatar(session.profile?.name || session.profile?.email))}" alt="u">`
+        : `F`
+      }
+    </div>
     <div class="bubble">${html}</div>`;
   chat.appendChild(row);
   chat.scrollTop = chat.scrollHeight;
@@ -218,7 +686,9 @@ function addTyping(){
   row.className = "msg";
   row.id = "typing";
   const lang = getLang();
-  row.innerHTML = `<div class="role"><span class="bot">F</span></div><div class="bubble typing">${I18N[lang].typing}</div>`;
+  row.innerHTML = `
+    <div class="avatar bot">F</div>
+    <div class="bubble typing">${I18N[lang].typing}</div>`;
   chat.appendChild(row);
   chat.scrollTop = chat.scrollHeight;
 }
@@ -293,7 +763,7 @@ const session = {
  *  ========================= */
 function applyI18N(){
   const lang = getLang();
-  document.documentElement.lang = lang;  // ← actualiza <html lang=...>
+  document.documentElement.lang = lang;
 
   $("#hSession").textContent = I18N[lang].session;
   $("#hApi").textContent = I18N[lang].apiBase;
@@ -305,7 +775,6 @@ function applyI18N(){
   $("#hAbout").textContent = I18N[lang].about;
   $("#aboutText").textContent = I18N[lang].aboutText;
   $("#input").placeholder = I18N[lang].placeholder;
-  $("#btnSend").textContent = I18N[lang].send;
   $("#tip").textContent = I18N[lang].tip;
   langSel.value = lang;
 }
@@ -316,7 +785,7 @@ langSel.addEventListener("change", ()=>{
 });
 
 async function ensureSession(){
-  setLang(getLang()); // init if missing
+  setLang(getLang());
   applyI18N();
 
   const url = new URL(location.href);
@@ -337,13 +806,10 @@ async function ensureSession(){
   session.profile = claims;
   session.ensureSessionId();
 
-  // Paint header & sidebar
-  $("#userName").textContent = claims.name || claims.given_name || (getLang()==="es"?"Usuario":"User");
-  $("#userEmail").textContent = claims.email || "";
-  $("#userAvatar").src = claims.picture || fallbackAvatar(claims.name || claims.email);
-  $("#nameSide").textContent = $("#userName").textContent;
-  $("#emailSide").textContent = $("#userEmail").textContent;
-  $("#avatarSide").src = $("#userAvatar").src;
+  // Paint sidebar user info
+  $("#nameSide").textContent = claims.name || claims.given_name || (getLang()==="es"?"Usuario":"User");
+  $("#emailSide").textContent = claims.email || "";
+  $("#avatarSide").src = claims.picture || fallbackAvatar(claims.name || claims.email);
 
   // Greet once per visit
   const firstName = claims.given_name || (claims.name||"").split(" ")[0] || "";
@@ -395,7 +861,8 @@ async function sendMessage(){
   if(!msg) return;
 
   addMsg({role:"user", html: escapeHtml(msg)});
-  input.value = ""; input.style.height = "56px";
+  input.value = ""; 
+  input.style.height = "auto";
 
   // saludo / identidad local → no golpeamos API
   const norm = msg.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[.,!?]/g,'').trim();
@@ -416,7 +883,7 @@ async function sendMessage(){
     session_id: session.sessionId || null,
     user_id: session.profile?.sub || null,
     title: null,
-    user_name: session.profile?.given_name || session.profile?.name || null   // ← enviado al backend
+    user_name: session.profile?.given_name || session.profile?.name || null
   };
 
   try{
@@ -433,9 +900,9 @@ async function sendMessage(){
       localStorage.setItem(session.sessionIdKey, data.session_id);
     }
 
-    // Renderiza siempre el texto que venga del server (ya “natural”)
+    // Renderiza siempre el texto que venga del server (ya "natural")
     let answer = (data?.text ?? "").trim();
-    if(!answer) answer = (getLang()==="es" ? "No tengo respuesta para eso todavía." : "I don’t have an answer for that yet.");
+    if(!answer) answer = (getLang()==="es" ? "No tengo respuesta para eso todavía." : "I don't have an answer for that yet.");
     addMsg({html: renderAssistant(answer)});
 
   }catch(e){
@@ -449,9 +916,10 @@ sendBtn.onclick = sendMessage;
 input.addEventListener("keydown",(e)=>{
   if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendMessage(); }
 });
+
 input.addEventListener("input", ()=>{
   input.style.height = "auto";
-  input.style.height = Math.min(160, input.scrollHeight) + "px";
+  input.style.height = Math.min(200, input.scrollHeight) + "px";
 });
 </script>
 </body>
