@@ -1,11 +1,48 @@
-<script>
-/** ====== CONFIG ====== **/
-const cognitoDomain = "fabric-llm-auth.auth.us-east-1.amazoncognito.com"; // tu domain de Cognito
-const clientId = "2i965jbq7hh115im6fl221m0l"; // tu App client id
-const redirectUri = "https://ml-team-fabricdata.github.io/llm-origin-insights/"; // raíz del GH Pages
-const scopes = ["openid","email","profile"]; // claims que tu UI necesita
-/** ===================== **/
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Fabric LLM</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    /* Oculta la app hasta que haya sesión */
+    #app { display:none; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    #loading { padding: 24px; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    header { display:flex; gap:12px; align-items:center; padding:12px 16px; border-bottom: 1px solid #eee;}
+    header img { width:32px; height:32px; border-radius:50%; object-fit:cover; }
+    header .grow { flex:1; }
+    button { padding:6px 10px; border:1px solid #ddd; border-radius:8px; background:#fafafa; cursor:pointer; }
+    main { padding: 16px; }
+  </style>
+</head>
+<body>
 
+<div id="loading">Cargando…</div>
+
+<div id="app">
+  <header>
+    <img id="userAvatar" alt="avatar" />
+    <div class="grow">
+      <div id="userName" style="font-weight:600;">Usuario</div>
+      <div id="userEmail" style="color:#666; font-size:12px;"></div>
+    </div>
+    <button onclick="logout()">Salir</button>
+  </header>
+
+  <main>
+    <!-- Tu UI del chat LLM va aquí -->
+    <p>¡Bienvenido/a! Ya estás autenticado. (Aquí renderea tu chat.)</p>
+  </main>
+</div>
+
+<script>
+/** ====== CONFIG: reemplaza estos 3 valores ====== **/
+const cognitoDomain = "fabric-llm-auth.auth.us-east-1.amazoncognito.com";
+const clientId = "2i965jqbq7hh1l5im6fl221m0l";
+const redirectUri = "https://ml-team-fabricdata.github.io/llm-origin-insights/";
+/** =============================================== **/
+
+const scopes = ["openid","email","profile"];
 const authzEndpoint = `https://${cognitoDomain}/oauth2/authorize`;
 const tokenEndpoint = `https://${cognitoDomain}/oauth2/token`;
 
@@ -30,7 +67,7 @@ async function login(){
 
 async function exchangeCode(code){
   const verifier = sessionStorage.getItem("pkce_verifier");
-  if(!verifier){console.error("No PKCE verifier"); return;}
+  if(!verifier) throw new Error("No PKCE verifier");
 
   const body = new URLSearchParams();
   body.set("grant_type","authorization_code");
@@ -44,12 +81,14 @@ async function exchangeCode(code){
     headers:{ "Content-Type":"application/x-www-form-urlencoded" },
     body: body.toString()
   });
-  if(!resp.ok){throw new Error("Token exchange failed");}
+  if(!resp.ok) throw new Error("Token exchange failed");
+
   const tok = await resp.json();
   sessionStorage.setItem("id_token", tok.id_token);
   sessionStorage.setItem("access_token", tok.access_token);
-  sessionStorage.setItem("refresh_token", tok.refresh_token || "");
-  // Limpia el ?code= de la URL para evitar reintentos
+  if (tok.refresh_token) sessionStorage.setItem("refresh_token", tok.refresh_token);
+
+  // Limpia los query params
   const clean = new URL(window.location.href);
   clean.searchParams.delete("code");
   clean.searchParams.delete("state");
@@ -59,6 +98,19 @@ async function exchangeCode(code){
 function parseJwt(t){
   const p = t.split(".")[1];
   return JSON.parse(atob(p.replace(/-/g,"+").replace(/_/g,"/")));
+}
+
+function showApp(claims){
+  const name = claims.name || claims.given_name || claims.email || "Usuario";
+  const email = claims.email || "";
+  const picture = claims.picture;
+
+  document.getElementById("userName").textContent = name;
+  document.getElementById("userEmail").textContent = email;
+  if (picture) document.getElementById("userAvatar").src = picture;
+
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("app").style.display = "block";
 }
 
 async function ensureSession(){
@@ -72,31 +124,24 @@ async function ensureSession(){
   }
 
   if(!idToken){
-    // No hay sesión → forzamos login
-    await login();
+    await login(); // redirige a Hosted UI (Google @fabricdata.com)
     return;
   }
 
-  // Ya hay sesión: puedes leer claims (name, email, picture) y pintar la UI
+  // Ya hay sesión → mostrar claims
   const claims = parseJwt(idToken);
-  // Ejemplo simple:
-  const name = claims.name || claims.email || "Usuario";
-  const pic = claims.picture;
-  console.log("Logged as:", name, claims.email, pic);
-
-  // TODO: pintar avatar/nombre en tu UI:
-  // document.querySelector("#userName").textContent = name;
-  // if (pic) document.querySelector("#userAvatar").src = pic;
+  showApp(claims);
 }
 
 ensureSession();
 
-// Logout helper:
-async function logout(){
+function logout(){
   sessionStorage.clear();
   const url = new URL(`https://${cognitoDomain}/logout`);
   url.searchParams.set("client_id", clientId);
-  url.searchParams.set("logout_uri", redirectUri); // vuelve a tu página pública
+  url.searchParams.set("logout_uri", redirectUri);
   window.location.assign(url.toString());
 }
 </script>
+</body>
+</html>
