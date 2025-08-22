@@ -5,7 +5,6 @@
   <title>Fabric LLM</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    /* Oculta la app hasta que haya sesión */
     #app { display:none; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
     #loading { padding: 24px; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
     header { display:flex; gap:12px; align-items:center; padding:12px 16px; border-bottom: 1px solid #eee;}
@@ -13,6 +12,7 @@
     header .grow { flex:1; }
     button { padding:6px 10px; border:1px solid #ddd; border-radius:8px; background:#fafafa; cursor:pointer; }
     main { padding: 16px; }
+    .muted { color:#666; font-size:12px; }
   </style>
 </head>
 <body>
@@ -24,33 +24,54 @@
     <img id="userAvatar" alt="avatar" />
     <div class="grow">
       <div id="userName" style="font-weight:600;">Usuario</div>
-      <div id="userEmail" style="color:#666; font-size:12px;"></div>
+      <div id="userEmail" class="muted"></div>
     </div>
     <button onclick="logout()">Salir</button>
   </header>
 
   <main>
     <!-- Tu UI del chat LLM va aquí -->
-    <p>¡Bienvenido/a! Ya estás autenticado. (Aquí renderea tu chat.)</p>
+    <p>¡Bienvenido/a! Ya estás autenticado. (Aquí renderiza tu chat.)</p>
   </main>
 </div>
 
 <script>
-/** ====== CONFIG: reemplaza estos 3 valores ====== **/
+/** ====== CONFIG ====== **/
 const cognitoDomain = "fabric-llm-auth.auth.us-east-1.amazoncognito.com";
-const clientId = "2i965jqbq7hh1l5im6fl221m0l";
-const redirectUri = "https://ml-team-fabricdata.github.io/llm-origin-insights/";
-/** =============================================== **/
+const clientId       = "2i965jqbq7hh1l5im6fl221m0l";
+const redirectUri    = "https://ml-team-fabricdata.github.io/llm-origin-insights/";
+/** ===================== **/
 
-const scopes = ["openid","email","profile"];
-const authzEndpoint = `https://${cognitoDomain}/oauth2/authorize`;
-const tokenEndpoint = `https://${cognitoDomain}/oauth2/token`;
+const scopes         = ["openid", "email", "profile"];
+const authzEndpoint  = `https://${cognitoDomain}/oauth2/authorize`;
+const tokenEndpoint  = `https://${cognitoDomain}/oauth2/token`;
+const userInfoEP     = `https://${cognitoDomain}/oauth2/userInfo`;
 
-function b64url(arr){return btoa(String.fromCharCode(...new Uint8Array(arr))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");}
-function randomString(len=64){const r=new Uint8Array(len);crypto.getRandomValues(r);return Array.from(r).map(b=>("0"+b.toString(16)).slice(-2)).join("");}
-async function sha256Buf(str){const enc=new TextEncoder();return await crypto.subtle.digest("SHA-256", enc.encode(str));}
+function b64url(arr){
+  return btoa(String.fromCharCode(...new Uint8Array(arr)))
+    .replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+function randomString(len=64){
+  const r = new Uint8Array(len);
+  crypto.getRandomValues(r);
+  return Array.from(r).map(b=>("0"+b.toString(16)).slice(-2)).join("");
+}
+async function sha256Buf(str){
+  const enc = new TextEncoder();
+  return await crypto.subtle.digest("SHA-256", enc.encode(str));
+}
 
-async function login(){
+function parseJwt(t){
+  try{
+    const p = t.split(".")[1];
+    return JSON.parse(atob(p.replace(/-/g,"+").replace(/_/g,"/")));
+  }catch(e){
+    console.error("parseJwt error", e);
+    return {};
+  }
+}
+
+async function login({ prompt } = {}){
   const verifier = randomString(64);
   const challenge = b64url(await sha256Buf(verifier));
   sessionStorage.setItem("pkce_verifier", verifier);
@@ -62,6 +83,10 @@ async function login(){
   url.searchParams.set("scope", scopes.join(" "));
   url.searchParams.set("code_challenge_method", "S256");
   url.searchParams.set("code_challenge", challenge);
+  // fuerza nuevo consentimiento si se pide
+  if (prompt) url.searchParams.set("prompt", prompt);
+
+  console.log("[auth] redirect to", url.toString());
   window.location.assign(url.toString());
 }
 
@@ -81,79 +106,122 @@ async function exchangeCode(code){
     headers:{ "Content-Type":"application/x-www-form-urlencoded" },
     body: body.toString()
   });
-  if(!resp.ok) throw new Error("Token exchange failed");
+  if(!resp.ok){
+    const txt = await resp.text().catch(()=>"(no body)");
+    throw new Error(`Token exchange failed: ${resp.status} ${txt}`);
+  }
 
   const tok = await resp.json();
+  console.log("[auth] tokens", tok);
+
   sessionStorage.setItem("id_token", tok.id_token);
   sessionStorage.setItem("access_token", tok.access_token);
   if (tok.refresh_token) sessionStorage.setItem("refresh_token", tok.refresh_token);
 
-  // Limpia los query params
+  // limpia query params
   const clean = new URL(window.location.href);
   clean.searchParams.delete("code");
   clean.searchParams.delete("state");
   window.history.replaceState({}, "", clean.toString());
 }
 
-function parseJwt(t){
-  const p = t.split(".")[1];
-  return JSON.parse(atob(p.replace(/-/g,"+").replace(/_/g,"/")));
-}
-
-async function userInfo() {
+async function fetchUserInfo() {
   const at = sessionStorage.getItem('access_token');
   if (!at) return null;
-  const r = await fetch(`https://${cognitoDomain}/oauth2/userInfo`, {
-    headers: { Authorization: `Bearer ${at}` }
-  });
-  if (!r.ok) return null;
+  const r = await fetch(userInfoEP, { headers: { Authorization: `Bearer ${at}` } });
+  if (!r.ok) {
+    console.warn("[auth] userInfo error", r.status);
+    return null;
+  }
   return await r.json(); // {sub, email, name, picture, ...}
 }
 
-// dentro de tu ensureSession(), después de parsear el id_token:
-let claims = parseJwt(idToken);
-
-// Fallback: si no viene picture en el ID token, intento /userInfo
-if (!claims.picture) {
-  try {
-    const info = await userInfo();
-    if (info?.picture) claims.picture = info.picture;
-    if (info?.name && !claims.name) claims.name = info.name;
-    if (info?.email && !claims.email) claims.email = info.email;
-  } catch (e) { console.warn('userInfo fallback failed', e); }
+/** avatar fallback si no hay foto **/
+function fallbackAvatar(text){
+  // iniciales desde name/email
+  const label = (text || "User").trim().slice(0,2).toUpperCase();
+  // DiceBear initials avatar
+  return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(label)}&backgroundColor=b6e3f4&radius=50`;
 }
-  
+
 function showApp(claims){
-  const name = claims.name || claims.given_name || claims.email || "Usuario";
-  const email = claims.email || "";
-  const picture = claims.picture;
+  const name    = claims.name || claims.given_name || claims.email || "Usuario";
+  const email   = claims.email || "";
+  let   picture = claims.picture;
+
+  if (!picture) picture = fallbackAvatar(name || email);
 
   document.getElementById("userName").textContent = name;
   document.getElementById("userEmail").textContent = email;
-  if (picture) document.getElementById("userAvatar").src = picture;
+  document.getElementById("userAvatar").src = picture;
 
   document.getElementById("loading").style.display = "none";
   document.getElementById("app").style.display = "block";
 }
 
+/** intenta completar claims con /userInfo; si sigue sin picture, fuerza un consent una vez **/
+async function enrichClaims(claims){
+  try{
+    if (!claims.picture || !claims.name || !claims.email) {
+      const info = await fetchUserInfo();
+      console.log("[auth] /userInfo ->", info);
+      if (info) {
+        claims.picture = claims.picture || info.picture;
+        claims.name    = claims.name    || info.name;
+        claims.email   = claims.email   || info.email;
+      }
+    }
+  }catch(e){
+    console.warn("[auth] enrichClaims error", e);
+  }
+
+  // Si después del fallback aún no hay picture, forza re-consent una sola vez
+  if (!claims.picture && !sessionStorage.getItem("forced_consent_once")) {
+    console.log("[auth] picture still missing: forcing prompt=consent once");
+    sessionStorage.setItem("forced_consent_once", "1");
+    await login({ prompt: "consent" });
+    return null; // vamos a redirigir
+  }
+
+  return claims;
+}
+
 async function ensureSession(){
-  const url = new URL(window.location.href);
-  const code = url.searchParams.get("code");
-  let idToken = sessionStorage.getItem("id_token");
+  try {
+    const url  = new URL(window.location.href);
+    const code = url.searchParams.get("code");
+    let idToken = sessionStorage.getItem("id_token");
 
-  if(code && !idToken){
-    try{ await exchangeCode(code); } catch(e){ console.error(e); }
-    idToken = sessionStorage.getItem("id_token");
+    if (code && !idToken) {
+      console.log("[auth] exchanging code…");
+      await exchangeCode(code);
+      idToken = sessionStorage.getItem("id_token");
+    }
+
+    if (!idToken) {
+      console.log("[auth] no id_token → login");
+      await login();
+      return; // redirige
+    }
+
+    let claims = parseJwt(idToken);
+    console.log("[auth] id_token claims", claims);
+
+    // si quieres restringir dominio:
+    // if (claims.email && !claims.email.endsWith("@fabricdata.com")) { logout(); return; }
+
+    const enriched = await enrichClaims(claims);
+    if (!enriched) return; // nos fuimos a pedir consentimiento
+
+    showApp(enriched);
+
+  } catch (e) {
+    console.error("[auth] ensureSession error", e);
+    document.getElementById("loading").textContent = "Error de autenticación. Reintenta.";
+    // como último recurso, limpia y relanza login:
+    sessionStorage.clear();
+    setTimeout(()=>login(), 1200);
   }
-
-  if(!idToken){
-    await login(); // redirige a Hosted UI (Google @fabricdata.com)
-    return;
-  }
-
-  // Ya hay sesión → mostrar claims
-  const claims = parseJwt(idToken);
-  showApp(claims);
 }
 
 ensureSession();
@@ -168,4 +236,3 @@ function logout(){
 </script>
 </body>
 </html>
-
