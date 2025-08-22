@@ -4,78 +4,178 @@
   <meta charset="utf-8" />
   <title>Fabric LLM</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark light"/>
   <style>
-    #app { display:none; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-    #loading { padding: 24px; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-    header { display:flex; gap:12px; align-items:center; padding:12px 16px; border-bottom: 1px solid #eee;}
-    header img { width:32px; height:32px; border-radius:50%; object-fit:cover; }
-    header .grow { flex:1; }
-    button { padding:6px 10px; border:1px solid #ddd; border-radius:8px; background:#fafafa; cursor:pointer; }
-    main { padding: 16px; }
-    .muted { color:#666; font-size:12px; }
+    :root {
+      --bg: #0b1220;
+      --panel: #0f172a;
+      --muted: #94a3b8;
+      --border: #1f2937;
+      --input: #0b1220;
+      --text: #e5e7eb;
+      --accent: #22c55e;
+      --danger: #ef4444;
+      --shadow: 0 10px 30px rgba(0,0,0,.25);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,"Noto Sans";}
+    a{color:#93c5fd;text-decoration:none}
+    a:hover{text-decoration:underline}
+
+    #loading{padding:24px}
+    #app{display:none;height:100%;}
+
+    .shell{display:grid;grid-template-columns:280px 1fr;height:100%}
+
+    /* Sidebar */
+    .sidebar{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;min-height:0}
+    .user{display:flex;gap:12px;align-items:center;padding:14px;border-bottom:1px solid var(--border)}
+    .user img{width:36px;height:36px;border-radius:50%;object-fit:cover}
+    .user .name{font-weight:600;line-height:1.1}
+    .user .email{color:var(--muted);font-size:12px}
+    .sb-actions{display:flex;gap:8px;padding:12px;border-bottom:1px solid var(--border)}
+    .btn{padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#111827;color:var(--text);cursor:pointer}
+    .btn:hover{background:#1f2937}
+    .danger{border-color:#3f1f1f;background:#251313}
+    .danger:hover{background:#371b1b}
+    .sb-block{padding:12px;border-bottom:1px solid var(--border)}
+    .label{color:var(--muted);font-size:12px;margin-bottom:6px}
+    .input{width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--text)}
+    .sid{font-size:12px;color:var(--muted);word-break:break-all;margin-top:6px}
+    .sessions{flex:1;overflow:auto;padding:8px}
+    .sess{padding:10px;border:1px solid var(--border);border-radius:10px;background:#0b1220;margin-bottom:8px;cursor:pointer}
+    .sess:hover{background:#121a2b}
+    .sess .ttl{font-weight:600}
+    .sess .sub{color:var(--muted);font-size:12px}
+
+    /* Chat header */
+    .header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+    .brand{font-weight:700}
+    .health{margin-left:auto;font-size:12px;border:1px solid var(--border);border-radius:999px;padding:4px 8px;color:var(--muted)}
+    .ok{color:var(--accent)}
+    .bad{color:var(--danger)}
+
+    /* Chat main */
+    .chat{display:flex;flex-direction:column;height:100%}
+    .msgs{flex:1;overflow:auto;padding:20px 24px}
+    .bubble{max-width:920px;margin:0 auto 14px;display:flex;gap:12px}
+    .bubble .avatar{width:28px;height:28px;border-radius:50%;object-fit:cover;margin-top:4px}
+    .bubble .content{flex:1;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
+    .bubble.user{flex-direction:row-reverse}
+    .bubble.user .content{background:#101826}
+    .muted{color:var(--muted)}
+    pre{white-space:pre-wrap;word-wrap:break-word;margin:0}
+
+    /* Composer */
+    .composer{padding:14px;border-top:1px solid var(--border);background:var(--panel)}
+    .composer .row{max-width:920px;margin:0 auto;display:flex;gap:10px}
+    textarea{flex:1;resize:none;height:60px;padding:12px;border-radius:12px;border:1px solid var(--border);background:#0b1220;color:var(--text)}
+    select{padding:10px;border-radius:12px;border:1px solid var(--border);background:#0b1220;color:var(--text)}
+    .send{padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:#111827;color:var(--text);cursor:pointer}
+    .send:hover{background:#1f2937}
+
+    /* Candidate list in assistant bubble */
+    .cand-list{display:grid;gap:8px;margin-top:10px}
+    .cand{padding:10px;border:1px solid var(--border);border-radius:10px;background:#0b1220}
+    .cand .row{display:flex;gap:8px;margin-top:8px}
+    .small{font-size:12px;color:var(--muted)}
+
+    /* Availability drawer */
+    .drawer{max-width:920px;margin:0 auto 18px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px;display:none}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left}
+    .ctrls{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+    .nowrap{white-space:nowrap}
+    @media (max-width: 960px){ .shell{grid-template-columns:1fr} .sidebar{display:none} }
   </style>
 </head>
 <body>
 
 <div id="loading">Cargando…</div>
 
-<div id="app">
-  <header>
-    <img id="userAvatar" alt="avatar" />
-    <div class="grow">
-      <div id="userName" style="font-weight:600;">Usuario</div>
-      <div id="userEmail" class="muted"></div>
+<div id="app" class="shell">
+  <aside class="sidebar">
+    <div class="user">
+      <img id="userAvatar" alt="avatar"/>
+      <div>
+        <div id="userName" class="name">Usuario</div>
+        <div id="userEmail" class="email"></div>
+      </div>
     </div>
-    <button onclick="logout()">Salir</button>
-  </header>
+    <div class="sb-actions">
+      <button class="btn" id="newChat">+ Nuevo chat</button>
+      <button class="btn danger" id="logoutBtn">Salir</button>
+    </div>
 
-  <main>
-    <!-- Tu UI del chat LLM va aquí -->
-    <p>¡Bienvenido/a! Ya estás autenticado. (Aquí renderiza tu chat.)</p>
-  </main>
+    <div class="sb-block">
+      <div class="label">API base</div>
+      <input id="apiBase" class="input" placeholder="https://xxxx.us-east-1.awsapprunner.com"/>
+      <div class="sid">Sesión: <span id="sid">…</span></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn" id="saveBase">Guardar</button>
+        <button class="btn" id="ping">Ping</button>
+      </div>
+    </div>
+
+    <div class="sb-block">
+      <div class="label">Tus chats</div>
+      <div id="sessions" class="sessions"></div>
+    </div>
+  </aside>
+
+  <section class="chat">
+    <div class="header">
+      <div class="brand">Fabric LLM</div>
+      <div id="health" class="health">salud: <span class="muted">…</span></div>
+    </div>
+
+    <div id="msgs" class="msgs"></div>
+
+    <div id="drawer" class="drawer">
+      <div class="ctrls">
+        <div class="nowrap">UID seleccionado: <code id="selUid">—</code></div>
+        <input id="iso" class="input" placeholder="ISO2 (AR, US…)" style="width:120px"/>
+        <button class="btn" id="loadAvail">Ver disponibilidad + precios</button>
+      </div>
+      <div id="avail"></div>
+    </div>
+
+    <div class="composer">
+      <div class="row">
+        <textarea id="message" placeholder="Escribe tu consulta… (p. ej. CONCLAVE)"></textarea>
+        <select id="lang">
+          <option value="es" selected>es</option>
+          <option value="en">en</option>
+        </select>
+        <button id="send" class="send">Enviar</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div class="small">Consejo: si el asistente devuelve candidatos, haz click en “Seleccionar” para fijar el título y luego abre la disponibilidad.</div>
+      </div>
+    </div>
+  </section>
 </div>
 
 <script>
-/** ====== CONFIG ====== **/
+/** ========= CONFIG AUTH ========= **/
 const cognitoDomain = "fabric-llm-auth.auth.us-east-1.amazoncognito.com";
 const clientId       = "2i965jqbq7hh1l5im6fl221m0l";
 const redirectUri    = "https://ml-team-fabricdata.github.io/llm-origin-insights/";
-/** ===================== **/
-
-const scopes         = ["openid", "email", "profile"];
+const scopes         = ["openid","email","profile"];
 const authzEndpoint  = `https://${cognitoDomain}/oauth2/authorize`;
 const tokenEndpoint  = `https://${cognitoDomain}/oauth2/token`;
 const userInfoEP     = `https://${cognitoDomain}/oauth2/userInfo`;
 
-function b64url(arr){
-  return btoa(String.fromCharCode(...new Uint8Array(arr)))
-    .replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
-}
-function randomString(len=64){
-  const r = new Uint8Array(len);
-  crypto.getRandomValues(r);
-  return Array.from(r).map(b=>("0"+b.toString(16)).slice(-2)).join("");
-}
-async function sha256Buf(str){
-  const enc = new TextEncoder();
-  return await crypto.subtle.digest("SHA-256", enc.encode(str));
-}
+function b64url(arr){return btoa(String.fromCharCode(...new Uint8Array(arr))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
+function randomString(len=64){const r=new Uint8Array(len);crypto.getRandomValues(r);return Array.from(r).map(b=>("0"+b.toString(16)).slice(-2)).join("")}
+async function sha256Buf(str){const enc=new TextEncoder();return await crypto.subtle.digest("SHA-256",enc.encode(str))}
+function parseJwt(t){try{const p=t.split(".")[1];return JSON.parse(atob(p.replace(/-/g,"+").replace(/_/g,"/"))) }catch{ return {} }}
 
-function parseJwt(t){
-  try{
-    const p = t.split(".")[1];
-    return JSON.parse(atob(p.replace(/-/g,"+").replace(/_/g,"/")));
-  }catch(e){
-    console.error("parseJwt error", e);
-    return {};
-  }
-}
-
-async function login({ prompt } = {}){
+async function login({prompt}={}) {
   const verifier = randomString(64);
   const challenge = b64url(await sha256Buf(verifier));
   sessionStorage.setItem("pkce_verifier", verifier);
-
   const url = new URL(authzEndpoint);
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("response_type", "code");
@@ -83,156 +183,340 @@ async function login({ prompt } = {}){
   url.searchParams.set("scope", scopes.join(" "));
   url.searchParams.set("code_challenge_method", "S256");
   url.searchParams.set("code_challenge", challenge);
-  // fuerza nuevo consentimiento si se pide
   if (prompt) url.searchParams.set("prompt", prompt);
-
-  console.log("[auth] redirect to", url.toString());
   window.location.assign(url.toString());
 }
 
 async function exchangeCode(code){
   const verifier = sessionStorage.getItem("pkce_verifier");
   if(!verifier) throw new Error("No PKCE verifier");
-
   const body = new URLSearchParams();
   body.set("grant_type","authorization_code");
-  body.set("client_id", clientId);
-  body.set("redirect_uri", redirectUri);
-  body.set("code_verifier", verifier);
-  body.set("code", code);
-
-  const resp = await fetch(tokenEndpoint, {
-    method:"POST",
-    headers:{ "Content-Type":"application/x-www-form-urlencoded" },
-    body: body.toString()
-  });
-  if(!resp.ok){
-    const txt = await resp.text().catch(()=>"(no body)");
-    throw new Error(`Token exchange failed: ${resp.status} ${txt}`);
-  }
-
+  body.set("client_id",clientId);
+  body.set("redirect_uri",redirectUri);
+  body.set("code_verifier",verifier);
+  body.set("code",code);
+  const resp = await fetch(tokenEndpoint,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:body.toString()});
+  if(!resp.ok){ throw new Error(`Token exchange failed: ${resp.status}`) }
   const tok = await resp.json();
-  console.log("[auth] tokens", tok);
-
   sessionStorage.setItem("id_token", tok.id_token);
   sessionStorage.setItem("access_token", tok.access_token);
   if (tok.refresh_token) sessionStorage.setItem("refresh_token", tok.refresh_token);
-
-  // limpia query params
-  const clean = new URL(window.location.href);
-  clean.searchParams.delete("code");
-  clean.searchParams.delete("state");
-  window.history.replaceState({}, "", clean.toString());
+  const clean = new URL(window.location.href); clean.searchParams.delete("code"); clean.searchParams.delete("state"); history.replaceState({}, "", clean.toString());
 }
 
-async function fetchUserInfo() {
+async function fetchUserInfo(){
   const at = sessionStorage.getItem('access_token');
   if (!at) return null;
-  const r = await fetch(userInfoEP, { headers: { Authorization: `Bearer ${at}` } });
-  if (!r.ok) {
-    console.warn("[auth] userInfo error", r.status);
-    return null;
-  }
-  return await r.json(); // {sub, email, name, picture, ...}
+  const r = await fetch(userInfoEP,{headers:{Authorization:`Bearer ${at}`}});
+  if (!r.ok) return null;
+  return await r.json();
 }
 
-/** avatar fallback si no hay foto **/
 function fallbackAvatar(text){
-  // iniciales desde name/email
-  const label = (text || "User").trim().slice(0,2).toUpperCase();
-  // DiceBear initials avatar
+  const label=(text || "User").trim().slice(0,2).toUpperCase();
   return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(label)}&backgroundColor=b6e3f4&radius=50`;
 }
 
-function showApp(claims){
-  const name    = claims.name || claims.given_name || claims.email || "Usuario";
-  const email   = claims.email || "";
-  let   picture = claims.picture;
-
-  if (!picture) picture = fallbackAvatar(name || email);
-
-  document.getElementById("userName").textContent = name;
-  document.getElementById("userEmail").textContent = email;
-  document.getElementById("userAvatar").src = picture;
-
-  document.getElementById("loading").style.display = "none";
-  document.getElementById("app").style.display = "block";
-}
-
-/** intenta completar claims con /userInfo; si sigue sin picture, fuerza un consent una vez **/
 async function enrichClaims(claims){
   try{
     if (!claims.picture || !claims.name || !claims.email) {
       const info = await fetchUserInfo();
-      console.log("[auth] /userInfo ->", info);
       if (info) {
         claims.picture = claims.picture || info.picture;
         claims.name    = claims.name    || info.name;
         claims.email   = claims.email   || info.email;
       }
     }
-  }catch(e){
-    console.warn("[auth] enrichClaims error", e);
-  }
-
-  // Si después del fallback aún no hay picture, forza re-consent una sola vez
+  }catch{}
   if (!claims.picture && !sessionStorage.getItem("forced_consent_once")) {
-    console.log("[auth] picture still missing: forcing prompt=consent once");
-    sessionStorage.setItem("forced_consent_once", "1");
-    await login({ prompt: "consent" });
-    return null; // vamos a redirigir
+    sessionStorage.setItem("forced_consent_once","1");
+    await login({prompt:"consent"});
+    return null;
   }
-
   return claims;
 }
 
 async function ensureSession(){
-  try {
-    const url  = new URL(window.location.href);
+  try{
+    const url = new URL(location.href);
     const code = url.searchParams.get("code");
     let idToken = sessionStorage.getItem("id_token");
-
-    if (code && !idToken) {
-      console.log("[auth] exchanging code…");
-      await exchangeCode(code);
-      idToken = sessionStorage.getItem("id_token");
-    }
-
-    if (!idToken) {
-      console.log("[auth] no id_token → login");
-      await login();
-      return; // redirige
-    }
-
+    if (code && !idToken) { await exchangeCode(code); idToken = sessionStorage.getItem("id_token"); }
+    if (!idToken) { await login(); return; }
     let claims = parseJwt(idToken);
-    console.log("[auth] id_token claims", claims);
-
-    // si quieres restringir dominio:
-    // if (claims.email && !claims.email.endsWith("@fabricdata.com")) { logout(); return; }
-
     const enriched = await enrichClaims(claims);
-    if (!enriched) return; // nos fuimos a pedir consentimiento
-
+    if (!enriched) return;
     showApp(enriched);
-
-  } catch (e) {
-    console.error("[auth] ensureSession error", e);
-    document.getElementById("loading").textContent = "Error de autenticación. Reintenta.";
-    // como último recurso, limpia y relanza login:
+  }catch(e){
+    document.getElementById("loading").textContent = "Error de autenticación. Reintenta…";
     sessionStorage.clear();
     setTimeout(()=>login(), 1200);
   }
 }
 
-ensureSession();
+function showApp(claims){
+  const name  = claims.name || claims.given_name || claims.email || "Usuario";
+  const email = claims.email || "";
+  let picture = claims.picture || fallbackAvatar(name || email);
+  document.getElementById("userName").textContent = name;
+  document.getElementById("userEmail").textContent = email;
+  document.getElementById("userAvatar").src = picture;
+  document.getElementById("logoutBtn").onclick = logout;
+  window.__claims = claims;
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("app").style.display = "grid";
+  initApp(); // arranca la UI de chat
+}
 
 function logout(){
   sessionStorage.clear();
   const url = new URL(`https://${cognitoDomain}/logout`);
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("logout_uri", redirectUri);
-  window.location.assign(url.toString());
+  location.assign(url.toString());
 }
+
+/** ========= APP (Estilo Chapi) ========= **/
+const $ = s => document.querySelector(s);
+const qs = new URLSearchParams(location.search);
+
+const state = {
+  apiBase: qs.get('api') || localStorage.getItem('apiBase') || '',
+  sessionId: localStorage.getItem('oi_session_id') || crypto.randomUUID(),
+  language: 'es',
+  selectedUid: null,
+  firstMessageTitle: null,
+};
+
+function initApp(){
+  // persist básicos
+  localStorage.setItem('oi_session_id', state.sessionId);
+  $('#sid').textContent = state.sessionId;
+  $('#apiBase').value = state.apiBase;
+  $('#lang').value = state.language;
+
+  // bindings
+  $('#saveBase').onclick = ()=> {
+    state.apiBase = $('#apiBase').value.trim().replace(/\/+$/,'');
+    localStorage.setItem('apiBase', state.apiBase);
+  };
+  $('#ping').onclick = pingHealth;
+  $('#send').onclick = sendMessage;
+  $('#newChat').onclick = newChat;
+  $('#loadAvail').onclick = loadAvailability;
+  $('#message').addEventListener('keydown', (e)=>{ if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }});
+
+  // inicial
+  if (state.apiBase) pingHealth();
+  loadSessions();
+}
+
+function apiBase(){
+  const base = $('#apiBase').value.trim();
+  if (!base) throw new Error('Configura API base en la barra lateral.');
+  return base.replace(/\/+$/,'');
+}
+
+async function pingHealth(){
+  try{
+    const j = await (await fetch(`${apiBase()}/healthz`, {cache:'no-store'})).json();
+    $('#health').innerHTML = `salud: <span class="${j.ok?'ok':'bad'}">${j.ok?'ok':'error'}</span>`;
+  }catch{
+    $('#health').innerHTML = `salud: <span class="bad">error</span>`;
+  }
+}
+
+function pushMsg({role, html, avatar}){
+  const wrap = document.createElement('div');
+  wrap.className = `bubble ${role==='user'?'user':'assistant'}`;
+  wrap.innerHTML = `
+    <img class="avatar" src="${role==='user' ? ($('#userAvatar').src) : 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2228%22 height=%2228%22><rect width=%2228%22 height=%2228%22 rx=%2214%22 fill=%22%23111827%22/><text x=%2214%22 y=%2219%22 text-anchor=%22middle%22 fill=%22%23e5e7eb%22 font-family=%22Arial%22 font-size=%2214%22>F</text></svg>'}" alt="a"/>
+    <div class="content">${html}</div>
+  `;
+  $('#msgs').appendChild(wrap);
+  $('#msgs').scrollTop = $('#msgs').scrollHeight;
+}
+
+function escapeHtml(s){ return (s??'').toString().replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])) }
+function pretty(obj){ return `<pre>${escapeHtml(JSON.stringify(obj,null,2))}</pre>` }
+
+async function sendMessage(){
+  const msg = $('#message').value.trim();
+  state.language = $('#lang').value;
+  if (!msg) return;
+  try{
+    // render user bubble
+    pushMsg({role:'user', html: `<div>${escapeHtml(msg)}</div>`});
+    $('#message').value = '';
+
+    // build payload
+    const claims = window.__claims || {};
+    const payload = {
+      message: msg,
+      language: state.language,
+      session_id: state.sessionId,
+      user_id: claims.sub || undefined,
+      title: state.firstMessageTitle || msg.slice(0,60)
+    };
+
+    const j = await postJson(`${apiBase()}/query`, payload);
+    if (!state.firstMessageTitle) { state.firstMessageTitle = payload.title; setTimeout(loadSessions, 1000); }
+    renderAssistant(j);
+    // si vino session_id del backend, lo fijamos (persistencia real)
+    if (j.session_id) { state.sessionId = j.session_id; localStorage.setItem('oi_session_id', state.sessionId); $('#sid').textContent = state.sessionId; }
+  }catch(e){
+    pushMsg({role:'assistant', html:`<div class="muted">Error: ${escapeHtml(e.message||String(e))}</div>`});
+  }
+}
+
+function renderAssistant(j){
+  if (j.step === 'disambiguation'){
+    const candHtml = (j.candidates||[]).map(c => `
+      <div class="cand">
+        <div><strong>${escapeHtml(c.title||'')}</strong> (${c.year ?? ''}) — IMDb: <code>${escapeHtml(c.imdb_id||'')}</code></div>
+        <div class="row">
+          <button class="btn" data-uid="${escapeHtml(c.uid)}">Seleccionar</button>
+        </div>
+      </div>
+    `).join('');
+    const html = `<div>${escapeHtml(j.text||'')}</div><div class="cand-list">${candHtml}</div>`;
+    pushMsg({role:'assistant', html});
+    // wire “Seleccionar”
+    const last = $('#msgs').lastElementChild;
+    last.querySelectorAll('button[data-uid]').forEach(btn=>{
+      btn.onclick = ()=> selectCandidate(btn.getAttribute('data-uid'));
+    });
+  } else {
+    pushMsg({role:'assistant', html:`<div>${escapeHtml(j.text||'')}</div>${j.candidates?.length?pretty(j.candidates[0]):''}`});
+    if (j.candidates?.length){
+      state.selectedUid = j.candidates[0].uid;
+      $('#selUid').textContent = state.selectedUid;
+      $('#drawer').style.display = 'block';
+      if (!$('#iso').value) $('#iso').value = 'AR';
+    }
+  }
+}
+
+async function selectCandidate(uid){
+  try{
+    const claims = window.__claims || {};
+    const j = await postJson(`${apiBase()}/query`, {
+      message: "",
+      language: state.language,
+      select_uid: uid,
+      session_id: state.sessionId,
+      user_id: claims.sub || undefined
+    });
+    renderAssistant(j);
+  }catch(e){
+    pushMsg({role:'assistant', html:`<div class="muted">Error al seleccionar: ${escapeHtml(e.message||String(e))}</div>`});
+  }
+}
+
+async function loadAvailability(){
+  const uid = state.selectedUid || $('#selUid').textContent.trim();
+  const iso = ($('#iso').value||'').trim().toUpperCase();
+  if (!uid) { alert('Primero selecciona un candidato.'); return; }
+  const url = new URL(`${apiBase()}/titles/availability-with-prices`);
+  url.searchParams.set('uid', uid);
+  if (iso) url.searchParams.set('iso', iso);
+  url.searchParams.set('limit', '50');
+  try{
+    const j = await (await fetch(url)).json();
+    $('#avail').innerHTML = renderAvailability(j);
+  }catch(e){
+    $('#avail').innerHTML = `<div class="bad">Error: ${escapeHtml(e.message||String(e))}</div>`;
+  }
+}
+
+function renderAvailability(j){
+  if (!j.ok) return `<div class="bad">${escapeHtml(j.error||'Error')}</div>`;
+  if (!j.count) return `<div class="muted">Sin resultados</div>`;
+  let html = `<table><thead>
+    <tr><th>Plataforma</th><th>País</th><th>Tipo</th><th>Precio</th><th>Moneda</th><th>Licencia</th><th>Link</th></tr>
+  </thead><tbody>`;
+  for (const r of j.results){
+    html += `<tr>
+      <td>${escapeHtml(r.platform_name||'')}</td>
+      <td>${escapeHtml(r.iso_alpha2||'')}</td>
+      <td>${escapeHtml(r.package_code2||r.type||'')}</td>
+      <td>${escapeHtml(r.price||'')}</td>
+      <td>${escapeHtml(r.currency||'')}</td>
+      <td>${escapeHtml(r.license||'')}</td>
+      <td>${r.permalink ? `<a href="${r.permalink}" target="_blank">ver</a>` : ''}</td>
+    </tr>`;
+  }
+  html += `</tbody></table>`;
+  return html;
+}
+
+async function postJson(url, obj){
+  const body = JSON.stringify(obj);
+  const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json; charset=utf-8'}, body });
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return r.json();
+}
+
+/** ==== sesiones ==== **/
+async function loadSessions(){
+  if (!state.apiBase) return;
+  const claims = window.__claims || {};
+  const userId = claims.sub || '';
+  try{
+    const url = new URL(`${apiBase()}/sessions`);
+    if (userId) url.searchParams.set('user_id', userId);
+    url.searchParams.set('limit','20');
+    const j = await (await fetch(url)).json();
+    const box = $('#sessions');
+    box.innerHTML = '';
+    (j.sessions||[]).forEach(s=>{
+      const el = document.createElement('div');
+      el.className = 'sess';
+      const title = s.title || (s.created_at || '').slice(0,16) || 'sesión';
+      el.innerHTML = `<div class="ttl">${escapeHtml(title)}</div><div class="sub">${escapeHtml(s.session_id||'')}</div>`;
+      el.onclick = ()=> loadSessionMessages(s.session_id, title);
+      box.appendChild(el);
+    });
+  }catch(e){
+    $('#sessions').innerHTML = `<div class="small muted">No se pudo cargar historial.</div>`;
+  }
+}
+
+async function loadSessionMessages(sessionId, title){
+  if (!sessionId) return;
+  try{
+    const j = await (await fetch(`${apiBase()}/sessions/${sessionId}/messages?limit=200`)).json();
+    $('#msgs').innerHTML = '';
+    (j.messages||[]).forEach(m=>{
+      if (m.role === 'user'){
+        pushMsg({role:'user', html:`<div>${escapeHtml(m.content||'')}</div>`});
+      } else {
+        pushMsg({role:'assistant', html:`<div>${escapeHtml(m.content||'')}</div>`});
+      }
+    });
+    state.sessionId = sessionId;
+    localStorage.setItem('oi_session_id', state.sessionId);
+    $('#sid').textContent = state.sessionId;
+    state.firstMessageTitle = title || null;
+  }catch(e){
+    pushMsg({role:'assistant', html:`<div class="muted">No se pudo abrir la sesión.</div>`});
+  }
+}
+
+function newChat(){
+  state.sessionId = crypto.randomUUID();
+  state.firstMessageTitle = null;
+  state.selectedUid = null;
+  localStorage.setItem('oi_session_id', state.sessionId);
+  $('#sid').textContent = state.sessionId;
+  $('#msgs').innerHTML = '';
+  $('#drawer').style.display = 'none';
+  $('#selUid').textContent = '—';
+}
+
+/** arrancar autenticación y luego la app **/
+ensureSession();
 </script>
 </body>
 </html>
