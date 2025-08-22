@@ -53,7 +53,7 @@
 <button class="toggle" id="btnSidebar">☰</button>
 <div class="layout">
   <aside class="sidebar" id="sidebar">
-    <h2>Sesión</h2>
+    <h2 id="hSession">Sesión</h2>
     <div class="row">
       <img id="avatarSide" src="" alt="avatar" style="width:28px;height:28px;border-radius:50%">
       <div>
@@ -62,7 +62,7 @@
       </div>
     </div>
 
-    <h2 style="margin-top:14px">API base</h2>
+    <h2 id="hApi" style="margin-top:14px">API base</h2>
     <div class="row"><input id="apiBase" type="text" placeholder="https://<apprunner>.awsapprunner.com"></div>
     <div class="row">
       <button id="btnSave">Guardar</button>
@@ -70,14 +70,14 @@
     </div>
     <div id="pingOut" class="small">—</div>
 
-    <h2 style="margin-top:14px">Acciones</h2>
+    <h2 id="hActions" style="margin-top:14px">Acciones</h2>
     <div class="row">
       <button id="btnLogout" style="width:100%">Salir</button>
     </div>
-    <div class="small">Tokens se guardan en sessionStorage.</div>
+    <div id="tokensNote" class="small">Tokens se guardan en sessionStorage.</div>
 
-    <h2 style="margin-top:14px">Acerca</h2>
-    <div class="small">Interfaz de chat para Origin Insights LLM.</div>
+    <h2 id="hAbout" style="margin-top:14px">Acerca</h2>
+    <div id="aboutText" class="small">Interfaz de chat para Origin Insights LLM.</div>
   </aside>
 
   <section class="main">
@@ -88,7 +88,7 @@
         <div class="muted" id="userEmail">—</div>
       </div>
       <select id="selLang" class="lang">
-        <option value="es" selected>es</option>
+        <option value="es">es</option>
         <option value="en">en</option>
       </select>
     </header>
@@ -100,12 +100,70 @@
         <textarea id="input" placeholder="Escribe tu consulta… (Shift+Enter = nueva línea)"></textarea>
         <button class="send" id="btnSend">Enviar</button>
       </div>
-      <div class="tip">Consejo: escribir un título (“Conclave 2024 en Argentina”), preguntar por la película más popular en un país y período determinado y mucho más.</div>
+      <div id="tip" class="tip">Consejo: puedes escribir un título (“Conclave 2024 en Argentina”), pedir dónde ver en un país, o consultar popularidad (HITS).</div>
     </div>
   </section>
 </div>
 
 <script>
+/** =========================
+ *  I18N
+ *  ========================= */
+const I18N = {
+  es: {
+    session: "Sesión",
+    apiBase: "API base",
+    save: "Guardar",
+    ping: "Ping",
+    saved: "Guardado.",
+    pinging: "→ Ping…",
+    pingErr: "Error de red",
+    actions: "Acciones",
+    logout: "Salir",
+    tokensNote: "Tokens se guardan en sessionStorage.",
+    about: "Acerca",
+    aboutText: "Interfaz de chat para Origin Insights LLM.",
+    placeholder: "Escribe tu consulta… (Shift+Enter = nueva línea)",
+    send: "Enviar",
+    tip: "Consejo: puedes escribir un título (“Conclave 2024 en Argentina”), pedir dónde ver en un país, o consultar popularidad (HITS).",
+    typing: "Escribiendo…",
+    greet: (name)=> `¡Hola ${escapeHtml(name||"")}! Soy el asistente virtual de Fabric Data. Puedo ayudarte a explorar nuestros datos sobre disponibilidad de contenidos en plataformas de streaming y popularidad (HITS). ¿Qué te gustaría descubrir hoy?`,
+    identity: "Soy el asistente virtual de Fabric Data, potenciado por IA generativa con datos de Fabric Origin Insights.",
+    disambIntro: "Encontré varias coincidencias relacionadas con tu búsqueda.",
+    disambAsk: "¿Podrías indicar el año, el/la director/a o algún otro dato para identificar el título exacto?",
+    needApi: "Configura la API base en la barra lateral.",
+    errorConnect: "Ocurrió un error al conectar con el servicio.",
+    whichCountry: "¿Para qué país?",
+  },
+  en: {
+    session: "Session",
+    apiBase: "API base",
+    save: "Save",
+    ping: "Ping",
+    saved: "Saved.",
+    pinging: "→ Pinging…",
+    pingErr: "Network error",
+    actions: "Actions",
+    logout: "Sign out",
+    tokensNote: "Tokens are stored in sessionStorage.",
+    about: "About",
+    aboutText: "Chat interface for Origin Insights LLM.",
+    placeholder: "Type your query… (Shift+Enter = new line)",
+    send: "Send",
+    tip: "Tip: try a title (“Conclave 2024 in Argentina”), ask where to watch in a country, or check popularity (HITS).",
+    typing: "Typing…",
+    greet: (name)=> `Hi ${escapeHtml(name||"")}! I’m Fabric Data’s virtual assistant. I can help you explore our data on streaming availability and popularity (HITS). What would you like to discover today?`,
+    identity: "I’m Fabric Data’s virtual assistant, powered by generative AI with Fabric Origin Insights data.",
+    disambIntro: "I found several matches related to your search.",
+    disambAsk: "Could you specify the year, the director, or any other detail to identify the exact title?",
+    needApi: "Set the API base in the sidebar.",
+    errorConnect: "There was an error connecting to the service.",
+    whichCountry: "For which country?",
+  }
+};
+function getLang(){ return localStorage.getItem("uiLang") || "es"; }
+function setLang(l){ localStorage.setItem("uiLang", l); }
+
 /** =========================
  *  CONFIG DE AUTENTICACIÓN
  *  ========================= */
@@ -132,6 +190,23 @@ $("#btnSidebar").onclick = ()=> sidebar.classList.toggle("open");
 function escapeHtml(str=""){
   return (str+"").replace(/[&<>"]/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[m]));
 }
+function normalizeTags(text=""){
+  // elimina <result>/<answer>/<output> envueltos o sueltos
+  const wrap = text.match(/^\s*<(result|answer|output)>\s*([\s\S]*?)\s*<\/\1>\s*$/i);
+  let s = wrap ? wrap[2] : text;
+  return s.replace(/<\/?(?:result|answer|output)\s*>/gi, "").trim();
+}
+function linkify(s){
+  return s.replace(/https?:\/\/[^\s)<>"]+/g, url=>`<a href="${url}" target="_blank" rel="noopener">${url}</a>`);
+}
+function renderAssistant(text){
+  const clean = normalizeTags(text||"");
+  let html = escapeHtml(clean);
+  html = html.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
+  html = linkify(html);
+  html = html.replace(/\n/g,"<br>");
+  return html;
+}
 function addMsg({role="assistant", html=""}){
   const row = document.createElement("div");
   row.className = "msg " + (role==="user"?"you":"");
@@ -148,7 +223,8 @@ function addTyping(){
   const row = document.createElement("div");
   row.className = "msg";
   row.id = "typing";
-  row.innerHTML = `<div class="role"><span class="bot">F</span></div><div class="bubble typing">Escribiendo…</div>`;
+  const lang = getLang();
+  row.innerHTML = `<div class="role"><span class="bot">F</span></div><div class="bubble typing">${I18N[lang].typing}</div>`;
   chat.appendChild(row);
   chat.scrollTop = chat.scrollHeight;
 }
@@ -198,8 +274,7 @@ async function exchangeCode(code){
 }
 async function fetchUserInfo(){
   const at = sessionStorage.getItem("access_token"); if(!at) return null;
-  const r = await fetch(userInfoEP,{headers:{Authorization:`Bearer ${at}`}});
-  if(!r.ok) return null;
+  const r = await fetch(userInfoEP,{headers:{Authorization:`Bearer ${at}`}}); if(!r.ok) return null;
   return await r.json();
 }
 function fallbackAvatar(text){
@@ -220,9 +295,34 @@ const session = {
 };
 
 /** =========================
- *  Boot
+ *  Boot + i18n apply
  *  ========================= */
+function applyI18N(){
+  const lang = getLang();
+  $("#hSession").textContent = I18N[lang].session;
+  $("#hApi").textContent = I18N[lang].apiBase;
+  $("#btnSave").textContent = I18N[lang].save;
+  $("#btnPing").textContent = I18N[lang].ping;
+  $("#hActions").textContent = I18N[lang].actions;
+  $("#btnLogout").textContent = I18N[lang].logout;
+  $("#tokensNote").textContent = I18N[lang].tokensNote;
+  $("#hAbout").textContent = I18N[lang].about;
+  $("#aboutText").textContent = I18N[lang].aboutText;
+  $("#input").placeholder = I18N[lang].placeholder;
+  $("#btnSend").textContent = I18N[lang].send;
+  $("#tip").textContent = I18N[lang].tip;
+  langSel.value = lang;
+}
+langSel.addEventListener("change", ()=>{
+  setLang(langSel.value);
+  applyI18N();
+  addMsg({html: (getLang()==="es" ? "Idioma cambiado a español." : "Language switched to English.")});
+});
+
 async function ensureSession(){
+  setLang(getLang()); // init if missing
+  applyI18N();
+
   const url = new URL(location.href);
   const code = url.searchParams.get("code");
   let idToken = sessionStorage.getItem("id_token");
@@ -242,7 +342,7 @@ async function ensureSession(){
   session.ensureSessionId();
 
   // Paint header & sidebar
-  $("#userName").textContent = claims.name || claims.given_name || "Usuario";
+  $("#userName").textContent = claims.name || claims.given_name || (getLang()==="es"?"Usuario":"User");
   $("#userEmail").textContent = claims.email || "";
   $("#userAvatar").src = claims.picture || fallbackAvatar(claims.name || claims.email);
   $("#nameSide").textContent = $("#userName").textContent;
@@ -250,13 +350,16 @@ async function ensureSession(){
   $("#avatarSide").src = $("#userAvatar").src;
 
   // Greet once per visit
-  addMsg({html:`¡Hola ${escapeHtml(claims.given_name || claims.name || "")}! Soy el asistente virtual de Fabric Data. Puedo ayudarte a explorar nuestros datos sobre disponibilidad de contenidos en plataformas de streaming, popularidad (HITS) y precios. ¿Qué te gustaría descubrir hoy?`.replace(/\*\*(.*?)\*\*/g,"<b>$1</b>")});
-
+  const firstName = claims.given_name || (claims.name||"").split(" ")[0] || "";
+  addMsg({html: I18N[getLang()].greet(firstName)});
   // Load saved API base
   $("#apiBase").value = session.apiBase;
 }
 ensureSession().catch(e=>{console.error(e);});
 
+/** =========================
+ *  Sidebar actions
+ *  ========================= */
 $("#btnLogout").onclick = ()=>{
   sessionStorage.clear();
   const url = new URL(`https://${cognitoDomain}/logout`);
@@ -264,38 +367,55 @@ $("#btnLogout").onclick = ()=>{
   url.searchParams.set("logout_uri", redirectUri);
   location.assign(url.toString());
 };
-
 $("#btnSave").onclick = ()=>{
   session.apiBase = $("#apiBase").value.trim();
-  $("#pingOut").textContent = "Guardado.";
+  $("#pingOut").textContent = I18N[getLang()].saved;
 };
 $("#btnPing").onclick = async ()=>{
   const base = (session.apiBase||"").replace(/\/+$/,"");
-  if(!base){ $("#pingOut").textContent="Configura API base."; return; }
-  $("#pingOut").textContent="→ Ping…";
+  if(!base){ $("#pingOut").textContent = I18N[getLang()].needApi; return; }
+  $("#pingOut").textContent = I18N[getLang()].pinging;
   try{
     const r = await fetch(`${base}/healthz`, {method:"GET"});
     const j = await r.json();
     $("#pingOut").textContent = `ok:${j.ok} db:${j.db}`;
-  }catch(e){ $("#pingOut").textContent = "Error de red"; }
+  }catch(e){ $("#pingOut").textContent = I18N[getLang()].pingErr; }
 };
 
 /** =========================
- *  Chat logic
+ *  Chat logic (con reglas de saludo/identidad locales)
  *  ========================= */
+const GREETINGS = new Set([
+  "hola","buenas","buenas tardes","buenas noches","buen dia","buen día",
+  "hello","hi","hey","good morning","good afternoon","good evening","what's up","whats up","que tal","qué tal"
+]);
+const IDENTITY_RE = /(qu[ié]n eres|qu[eé] eres|who are you|what are you)/i;
+
 async function sendMessage(){
   const base = (session.apiBase||"").replace(/\/+$/,"");
   const msg  = input.value.trim();
-  if(!base){ addMsg({html:"<i>Configura la API base en la barra lateral.</i>"}); return; }
+  if(!base){ addMsg({html:`<i>${I18N[getLang()].needApi}</i>`}); return; }
   if(!msg) return;
 
   addMsg({role:"user", html: escapeHtml(msg)});
   input.value = ""; input.style.height = "56px";
-  addTyping();
 
+  // saludo / identidad local → no golpeamos API
+  const norm = msg.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[.,!?]/g,'').trim();
+  if (GREETINGS.has(norm)) {
+    const firstName = session.profile?.given_name || (session.profile?.name||"").split(" ")[0] || "";
+    addMsg({html: I18N[getLang()].greet(firstName)});
+    return;
+  }
+  if (IDENTITY_RE.test(msg)) {
+    addMsg({html: I18N[getLang()].identity});
+    return;
+  }
+
+  addTyping();
   const payload = {
     message: msg,
-    language: langSel.value || "es",
+    language: getLang(),
     session_id: session.sessionId || null,
     user_id: session.profile?.sub || null,
     title: null
@@ -310,32 +430,33 @@ async function sendMessage(){
     const data = await resp.json();
     removeTyping();
 
-    // Guarda session_id devuelta (persistencia de conversación)
+    // Guarda session_id devuelto
     if(data?.session_id){
       localStorage.setItem(session.sessionIdKey, data.session_id);
     }
 
-    // Render natural
+    // Desambiguación con redacción natural (sin botones)
     if(data?.step === "disambiguation" && Array.isArray(data.candidates) && data.candidates.length){
+      const lang = getLang();
       const tops = data.candidates.slice(0,5).map(c=>{
         const y = c.year ? ` (${c.year})` : "";
-        const dir = c.directors ? ` — dir. ${c.directors}` : "";
+        const dir = c.directors ? ` — ${lang==="es"?"dir.":"dir."} ${escapeHtml(c.directors)}` : "";
         return `• <b>${escapeHtml(c.title)}</b>${y}${dir}`;
       }).join("\n");
-      const text = `Encontré varias coincidencias relacionadas con tu búsqueda.\n\n${tops}\n\n¿Podrías indicar el año, el director/a, o algún otro dato para identificar el título exacto?`;
+      const text = `${I18N[lang].disambIntro}\n\n${tops}\n\n${I18N[lang].disambAsk}`;
       addMsg({html: text.replace(/\n/g,"<br>")});
       return;
     }
 
-    // Normal answer
+    // Respuesta normal (con linkificación y limpieza de tags)
     let answer = (data?.text ?? "").trim();
-    if(!answer) answer = "No tengo respuesta para eso todavía.";
-    addMsg({html: escapeHtml(answer).replace(/\n/g,"<br>")});
+    if(!answer) answer = (getLang()==="es" ? "No tengo respuesta para eso todavía." : "I don’t have an answer for that yet.");
+    addMsg({html: renderAssistant(answer)});
 
   }catch(e){
     console.error(e);
     removeTyping();
-    addMsg({html:"<i>Ocurrió un error al conectar con el servicio.</i>"});
+    addMsg({html:`<i>${I18N[getLang()].errorConnect}</i>`});
   }
 }
 
@@ -350,4 +471,3 @@ input.addEventListener("input", ()=>{
 </script>
 </body>
 </html>
-
