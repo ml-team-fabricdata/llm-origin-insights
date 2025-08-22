@@ -63,7 +63,7 @@
     </div>
 
     <h2 id="hApi" style="margin-top:14px">API base</h2>
-    <div class="row"><input id="apiBase" type="text" placeholder="https://<apprunner>.awsapprunner.com"></div>
+    <div class="row"><input id="apiBase" type="text" placeholder="https://&lt;apprunner&gt;.awsapprunner.com"></div>
     <div class="row">
       <button id="btnSave">Guardar</button>
       <button id="btnPing">Ping</button>
@@ -129,11 +129,8 @@ const I18N = {
     typing: "Escribiendo…",
     greet: (name)=> `¡Hola ${escapeHtml(name||"")}! Soy el asistente virtual de Fabric Data. Puedo ayudarte a explorar nuestros datos sobre disponibilidad de contenidos en plataformas de streaming y popularidad (HITS). ¿Qué te gustaría descubrir hoy?`,
     identity: "Soy el asistente virtual de Fabric Data, potenciado por IA generativa con datos de Fabric Origin Insights.",
-    disambIntro: "Encontré varias coincidencias relacionadas con tu búsqueda.",
-    disambAsk: "¿Podrías indicar el año, el/la director/a o algún otro dato para identificar el título exacto?",
     needApi: "Configura la API base en la barra lateral.",
-    errorConnect: "Ocurrió un error al conectar con el servicio.",
-    whichCountry: "¿Para qué país?",
+    errorConnect: "Ocurrió un error al conectar con el servicio."
   },
   en: {
     session: "Session",
@@ -154,11 +151,8 @@ const I18N = {
     typing: "Typing…",
     greet: (name)=> `Hi ${escapeHtml(name||"")}! I’m Fabric Data’s virtual assistant. I can help you explore our data on streaming availability and popularity (HITS). What would you like to discover today?`,
     identity: "I’m Fabric Data’s virtual assistant, powered by generative AI with Fabric Origin Insights data.",
-    disambIntro: "I found several matches related to your search.",
-    disambAsk: "Could you specify the year, the director, or any other detail to identify the exact title?",
     needApi: "Set the API base in the sidebar.",
-    errorConnect: "There was an error connecting to the service.",
-    whichCountry: "For which country?",
+    errorConnect: "There was an error connecting to the service."
   }
 };
 function getLang(){ return localStorage.getItem("uiLang") || "es"; }
@@ -299,6 +293,8 @@ const session = {
  *  ========================= */
 function applyI18N(){
   const lang = getLang();
+  document.documentElement.lang = lang;  // ← actualiza <html lang=...>
+
   $("#hSession").textContent = I18N[lang].session;
   $("#hApi").textContent = I18N[lang].apiBase;
   $("#btnSave").textContent = I18N[lang].save;
@@ -352,6 +348,7 @@ async function ensureSession(){
   // Greet once per visit
   const firstName = claims.given_name || (claims.name||"").split(" ")[0] || "";
   addMsg({html: I18N[getLang()].greet(firstName)});
+
   // Load saved API base
   $("#apiBase").value = session.apiBase;
 }
@@ -383,7 +380,7 @@ $("#btnPing").onclick = async ()=>{
 };
 
 /** =========================
- *  Chat logic (con reglas de saludo/identidad locales)
+ *  Chat logic (saludo/identidad locales)
  *  ========================= */
 const GREETINGS = new Set([
   "hola","buenas","buenas tardes","buenas noches","buen dia","buen día",
@@ -418,7 +415,8 @@ async function sendMessage(){
     language: getLang(),
     session_id: session.sessionId || null,
     user_id: session.profile?.sub || null,
-    title: null
+    title: null,
+    user_name: session.profile?.given_name || session.profile?.name || null   // ← enviado al backend
   };
 
   try{
@@ -435,20 +433,7 @@ async function sendMessage(){
       localStorage.setItem(session.sessionIdKey, data.session_id);
     }
 
-    // Desambiguación con redacción natural (sin botones)
-    if(data?.step === "disambiguation" && Array.isArray(data.candidates) && data.candidates.length){
-      const lang = getLang();
-      const tops = data.candidates.slice(0,5).map(c=>{
-        const y = c.year ? ` (${c.year})` : "";
-        const dir = c.directors ? ` — ${lang==="es"?"dir.":"dir."} ${escapeHtml(c.directors)}` : "";
-        return `• <b>${escapeHtml(c.title)}</b>${y}${dir}`;
-      }).join("\n");
-      const text = `${I18N[lang].disambIntro}\n\n${tops}\n\n${I18N[lang].disambAsk}`;
-      addMsg({html: text.replace(/\n/g,"<br>")});
-      return;
-    }
-
-    // Respuesta normal (con linkificación y limpieza de tags)
+    // Renderiza siempre el texto que venga del server (ya “natural”)
     let answer = (data?.text ?? "").trim();
     if(!answer) answer = (getLang()==="es" ? "No tengo respuesta para eso todavía." : "I don’t have an answer for that yet.");
     addMsg({html: renderAssistant(answer)});
