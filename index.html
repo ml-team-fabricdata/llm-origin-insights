@@ -100,6 +100,29 @@ function parseJwt(t){
   return JSON.parse(atob(p.replace(/-/g,"+").replace(/_/g,"/")));
 }
 
+async function userInfo() {
+  const at = sessionStorage.getItem('access_token');
+  if (!at) return null;
+  const r = await fetch(`https://${cognitoDomain}/oauth2/userInfo`, {
+    headers: { Authorization: `Bearer ${at}` }
+  });
+  if (!r.ok) return null;
+  return await r.json(); // {sub, email, name, picture, ...}
+}
+
+// dentro de tu ensureSession(), después de parsear el id_token:
+let claims = parseJwt(idToken);
+
+// Fallback: si no viene picture en el ID token, intento /userInfo
+if (!claims.picture) {
+  try {
+    const info = await userInfo();
+    if (info?.picture) claims.picture = info.picture;
+    if (info?.name && !claims.name) claims.name = info.name;
+    if (info?.email && !claims.email) claims.email = info.email;
+  } catch (e) { console.warn('userInfo fallback failed', e); }
+}
+  
 function showApp(claims){
   const name = claims.name || claims.given_name || claims.email || "Usuario";
   const email = claims.email || "";
@@ -145,3 +168,4 @@ function logout(){
 </script>
 </body>
 </html>
+
