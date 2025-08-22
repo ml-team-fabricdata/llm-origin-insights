@@ -77,7 +77,7 @@
     <div class="small">Tokens se guardan en sessionStorage.</div>
 
     <h2 style="margin-top:14px">Acerca</h2>
-    <div class="small">Interfaz de chat para Origin Insights LLM. No sugiere precios ni muestra botones de selección; conversación natural.</div>
+    <div class="small">Interfaz de chat para Origin Insights LLM.</div>
   </aside>
 
   <section class="main">
@@ -100,7 +100,7 @@
         <textarea id="input" placeholder="Escribe tu consulta… (Shift+Enter = nueva línea)"></textarea>
         <button class="send" id="btnSend">Enviar</button>
       </div>
-      <div class="tip">Consejo: puedes saludar (“hola”), preguntar “quién eres”, o escribir un título (“Conclave 2024 en Argentina”).</div>
+      <div class="tip">Consejo: escribir un título (“Conclave 2024 en Argentina”), preguntar por la película más popular en un país y período determinado y mucho más.</div>
     </div>
   </section>
 </div>
@@ -250,7 +250,7 @@ async function ensureSession(){
   $("#avatarSide").src = $("#userAvatar").src;
 
   // Greet once per visit
-  addMsg({html:`¡Hola ${escapeHtml(claims.given_name || claims.name || "")}! Soy Fabric LLM. Puedo ayudarte con **disponibilidad** por país/plataforma, metadatos y más. ¿Qué te gustaría explorar hoy?`.replace(/\*\*(.*?)\*\*/g,"<b>$1</b>")});
+  addMsg({html:`¡Hola ${escapeHtml(claims.given_name || claims.name || "")}! Soy el asistente virtual de Fabric Data. Puedo ayudarte a explorar nuestros datos sobre disponibilidad de contenidos en plataformas de streaming, popularidad (HITS) y precios. ¿Qué te gustaría descubrir hoy?`.replace(/\*\*(.*?)\*\*/g,"<b>$1</b>")});
 
   // Load saved API base
   $("#apiBase").value = session.apiBase;
@@ -350,3 +350,4 @@ input.addEventListener("input", ()=>{
 </script>
 </body>
 </html>
+
