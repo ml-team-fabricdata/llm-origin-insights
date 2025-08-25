@@ -566,7 +566,7 @@
           </svg>
         </button>
       </div>
-      <div id="tip" class="tip">Consejo: puedes escribir un título ("Conclave 2024 en Argentina"), pedir dónde ver en un país, o consultar popularidad (HITS).</div>
+      <div id="tip" class="tip">Consejo: puedes escribir un título ("Conclave 2024"), pedir dónde ver en un país, o consultar popularidad (HITS).</div>
     </div>
   </section>
 </div>
@@ -594,7 +594,7 @@ const I18N = {
     tip: "Consejo: puedes escribir un título (“Conclave 2024 en Argentina”), pedir dónde ver en un país, o consultar popularidad (HITS).",
     typing: "Escribiendo…",
     greet: (name)=> `¡Hola ${escapeHtml(name||"")}! Soy el asistente virtual de Fabric Data. Puedo ayudarte a explorar nuestros datos sobre disponibilidad de contenidos en plataformas de streaming y popularidad (HITS). ¿Qué te gustaría descubrir hoy?`,
-    identity: "Soy el asistente virtual de Fabric Data, potenciado por IA generativa con datos de Fabric Origin Insights.",
+    identity: "Soy el asistente virtual de Fabric Data, basado en herramientas y datos estructurados de Fabric Origin Insights.",
     needApi: "Configura la API base en la barra lateral.",
     errorConnect: "Ocurrió un error al conectar con el servicio."
   },
@@ -616,7 +616,7 @@ const I18N = {
     tip: "Tip: try a title (“Conclave 2024 in Argentina”), ask where to watch in a country, or check popularity (HITS).",
     typing: "Typing…",
     greet: (name)=> `Hi ${escapeHtml(name||"")}! I'm Fabric Data's virtual assistant. I can help you explore our data on streaming availability and popularity (HITS). What would you like to discover today?`,
-    identity: "I'm Fabric Data's virtual assistant, powered by generative AI with Fabric Origin Insights data.",
+    identity: "I'm Fabric Data's virtual assistant, powered by tools and structured data from Fabric Origin Insights.",
     needApi: "Set the API base in the sidebar.",
     errorConnect: "There was an error connecting to the service."
   }
@@ -852,7 +852,8 @@ const GREETINGS = new Set([
   "hola","buenas","buenas tardes","buenas noches","buen dia","buen día",
   "hello","hi","hey","good morning","good afternoon","good evening","what's up","whats up","que tal","qué tal"
 ]);
-const IDENTITY_RE = /(qu[ié]n eres|qu[eé] eres|who are you|what are you)/i;
+// CORREGIDO: captura “quien eres” (sin tilde) y variante rioplatense “quien sos”
+const IDENTITY_RE = /(qui[eé]n\s+(eres|sos)|who are you|what are you)/i;
 
 async function sendMessage(){
   const base = (session.apiBase||"").replace(/\/+$/,"");
@@ -871,7 +872,7 @@ async function sendMessage(){
     addMsg({html: I18N[getLang()].greet(firstName)});
     return;
   }
-  if (IDENTITY_RE.test(msg)) {
+  if (IDENTITY_RE.test(norm) || IDENTITY_RE.test(msg)) {
     addMsg({html: I18N[getLang()].identity});
     return;
   }
