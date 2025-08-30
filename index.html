@@ -13,7 +13,7 @@
       --fabric-purple: #7600BF;
       --fabric-pink: #F11E5A;
       --fabric-orange: #F75830;
-      
+
       /* UI Colors based on Fabric palette */
       --bg: #0f0f0f;
       --panel: var(--fabric-dark);
@@ -185,14 +185,6 @@
 
     .tip { max-width: 768px; margin: 12px auto 0; color: var(--text-muted); font-size: 12px; text-align: center; line-height: 1.4; }
     .hidden { display: none; }
-
-    /* Disambiguation list */
-    .cand-list { margin-top: 8px; display: grid; gap: 8px; }
-    .cand-item { display:flex; align-items:center; justify-content: space-between; gap:8px; padding:10px 12px; border:1px solid var(--border); background: var(--card); border-radius: 10px; }
-    .cand-title { font-weight:600; }
-    .cand-meta { color: var(--text-muted); font-size: 12px; }
-    .cand-btn { background: var(--input-bg); border:1px solid var(--border-light); color: var(--text); padding:6px 10px; border-radius:8px; cursor:pointer; }
-    .cand-btn:hover { background: var(--border); }
   </style>
 </head>
 <body>
@@ -304,16 +296,15 @@ const I18N = {
     aboutText: "Interfaz de chat para Origin Insights LLM.",
     placeholder: "Escribe tu consulta… (Shift+Enter = nueva línea)",
     send: "Enviar",
-    tip: "Consejo: prueba un título (\"Conclave 2024 en Argentina\"), pide dónde ver en un país o consulta popularidad (HITS).",
+    tip: "Tip: prueba un título (\"Conclave 2024 en Argentina\"), pide dónde ver en un país o consulta popularidad (HITS).",
     typing: "Escribiendo…",
     greet: (name)=> `¡Hola ${escapeHtml(name||"")}! Soy el asistente virtual de Fabric Data. Te ayudo a explorar disponibilidad (por país/plataforma), popularidad (HITS) y metadatos. ¿Qué te gustaría descubrir hoy?`,
     identity: "Soy el asistente virtual de Fabric Data. Funcionamiento determinista (SQL-first) sobre Origin Insights.",
     needApi: "Configura la API base en la barra lateral.",
     errorConnect: "Ocurrió un error al conectar con el servicio.",
-    disambigTitle: "Necesito desambiguar",
-    disambigHint: "Selecciona una opción o indica año/director.",
-    select: "Seleccionar",
-    selected: (t,y)=> `Seleccionado: ${t} (${y}). Pide \u2018de qué trata\u2019 o \u2018¿dónde verla en AR?\u2019`
+    // Textos por si se usan en otros lados (el backend ya provee el copy)
+    disambigTitle: "Encontré varios contenidos con ese título",
+    disambigHint: "Puedes indicar el número, decir «el primero», o proveer el año/UID/IMDb."
   },
   en: {
     session: "Session",
@@ -339,10 +330,8 @@ const I18N = {
     identity: "I'm Fabric Data's virtual assistant. Deterministic (SQL-first) operation over Origin Insights.",
     needApi: "Set the API base in the sidebar.",
     errorConnect: "There was an error connecting to the service.",
-    disambigTitle: "I need to disambiguate",
-    disambigHint: "Pick one option or provide year/director.",
-    select: "Select",
-    selected: (t,y)=> `Selected: ${t} (${y}). Ask for \u2018what's the plot?\u2019 or \u2018where to watch in AR?\u2019`
+    disambigTitle: "I found several titles with that name",
+    disambigHint: "You can reply with the number, say “the first”, or provide year/UID/IMDb."
   }
 };
 function getLang(){ return localStorage.getItem("uiLang") || "es"; }
@@ -599,61 +588,6 @@ $("#btnCopySid").onclick = async ()=>{
 };
 
 /** =========================
- *  Render helpers (disambiguation)
- *  ========================= */
-function renderCandidates(cands){
-  const lang = getLang();
-  const list = document.createElement('div');
-  list.className = 'cand-list';
-  for(const c of (cands||[])){
-    const item = document.createElement('div');
-    item.className = 'cand-item';
-    const left = document.createElement('div');
-    left.innerHTML = `<div class="cand-title">${escapeHtml(c.title||'-')}</div>
-                      <div class="cand-meta">${escapeHtml(c.type||'?')} · ${escapeHtml(String(c.year||''))} ${c.sim?`· sim ${String(c.sim).slice(0,4)}`:''}</div>`;
-    const btn = document.createElement('button');
-    btn.className = 'cand-btn';
-    btn.textContent = I18N[lang].select;
-    btn.onclick = ()=> selectCandidate(c.uid);
-    item.appendChild(left); item.appendChild(btn);
-    list.appendChild(item);
-  }
-  addMsg({html: `<b>${I18N[lang].disambigTitle}</b><br>${I18N[lang].disambigHint}<div class="cand-list-wrap"></div>`});
-  const last = chat.lastElementChild?.querySelector('.cand-list-wrap');
-  if(last) last.replaceWith(list);
-}
-
-async function selectCandidate(uid){
-  const base = (session.apiBase||"").replace(/\/+$/,"");
-  if(!base) return;
-  addTyping();
-  const payload = {
-    session_id: session.sessionId || null,
-    language: getLang(),
-    select_uid: uid
-  };
-  try{
-    const resp = await fetch(`${base}/query`,{
-      method:"POST",
-      headers:{ "Content-Type":"application/json; charset=utf-8" },
-      body: JSON.stringify(payload)
-    });
-    const data = await resp.json();
-    removeTyping();
-
-    if(data?.session_id){ localStorage.setItem(session.sessionIdKey, data.session_id); $("#sidBox").textContent = data.session_id; }
-    if(data?.selected_uid){ session.lastUid = data.selected_uid; }
-
-    let answer = (data?.text ?? "").trim();
-    if(!answer) answer = (getLang()==="es" ? "Seleccionado." : "Selected.");
-    addMsg({html: renderAssistant(answer)});
-  }catch(e){
-    removeTyping();
-    addMsg({html:`<i>${I18N[getLang()].errorConnect}</i>`});
-  }
-}
-
-/** =========================
  *  Chat logic
  *  ========================= */
 const GREETINGS = new Set([
@@ -669,7 +603,7 @@ async function sendMessage(){
   if(!msg) return;
 
   addMsg({role:"user", html: escapeHtml(msg)});
-  input.value = ""; 
+  input.value = "";
   input.style.height = "auto";
 
   // saludo / identidad local → no golpeamos API
@@ -712,12 +646,34 @@ async function sendMessage(){
     // persist last uid if server provides it
     if (data?.selected_uid){ session.lastUid = data.selected_uid; }
 
-    if (data?.step === 'disambiguation' && Array.isArray(data.candidates) && data.candidates.length) {
-      renderCandidates(data.candidates);
+    // --- Desambiguación: mostrar lista "natural" sin UI interactiva ---
+    if (data?.step === 'disambiguation') {
+      const head = (data?.text || "").trim();
+
+      // Deduplicar por (uid, imdb_id)
+      const seen = new Set();
+      const uniq = (Array.isArray(data.candidates) ? data.candidates : [])
+        .filter(c => {
+          const k = (c.uid || "") + "::" + (c.imdb_id || "");
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+
+      const lines = uniq.map((c, i) => {
+        const tt   = c.title || "-";
+        const yy   = (c.year != null ? String(c.year) : "s/f");
+        const imdb = c.imdb_id ? ` — IMDb: ${c.imdb_id}` : "";
+        const uid  = c.uid ? ` — UID: ${c.uid}` : "";
+        return `${i + 1}. ${tt} (${yy})${uid}${imdb}`;
+      });
+
+      const out = [head, "", ...lines].join("\n");
+      addMsg({ html: renderAssistant(out) });
       return;
     }
 
-    // Render text
+    // Render texto normal
     let answer = (data?.text ?? "").trim();
     if(!answer) answer = (getLang()==="es" ? "No tengo respuesta para eso todavía." : "I don't have an answer for that yet.");
     addMsg({html: renderAssistant(answer)});
