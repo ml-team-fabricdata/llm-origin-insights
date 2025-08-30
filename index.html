@@ -618,70 +618,70 @@ async function sendMessage(){
     return;
   }
 
-  addTyping();
+  // payload normal
   const payload = {
     message: msg,
     language: getLang(),
     session_id: session.sessionId || null,
     user_id: session.profile?.sub || null,
     user_name: session.profile?.given_name || session.profile?.name || null,
-    // contexto opcional
     context_uid: session.lastUid || null
   };
 
-  try{
-    const resp = await fetch(`${base}/query`,{
-      method:"POST",
-      headers:{ "Content-Type":"application/json; charset=utf-8" },
-      body: JSON.stringify(payload)
+  // === BLOQUE NUEVO (timeout + content-type + errores legibles) ===
+  addTyping();
+  const controller = new AbortController();
+  const TIMEOUT_MS = 25000;
+  const to = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const resp = await fetch(`${base}/query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+      body: JSON.stringify(payload),
+      signal: controller.signal
     });
-    const data = await resp.json();
+
+    const ct = resp.headers.get("content-type") || "";
+    let data;
+
+    if (ct.includes("application/json")) {
+      data = await resp.json();
+    } else {
+      const txt = await resp.text();
+      throw new Error(`HTTP ${resp.status} ${resp.statusText} • ${txt.slice(0,200)}`);
+    }
+
     removeTyping();
 
     // persist session id returned
-    if(data?.session_id){
+    if (data?.session_id){
       localStorage.setItem(session.sessionIdKey, data.session_id);
       $("#sidBox").textContent = data.session_id;
     }
     // persist last uid if server provides it
     if (data?.selected_uid){ session.lastUid = data.selected_uid; }
 
-    // --- Desambiguación: mostrar lista "natural" sin UI interactiva ---
+    // Desambiguación: mostramos solo el texto que formatea el backend
     if (data?.step === 'disambiguation') {
-      const head = (data?.text || "").trim();
-
-      // Deduplicar por (uid, imdb_id)
-      const seen = new Set();
-      const uniq = (Array.isArray(data.candidates) ? data.candidates : [])
-        .filter(c => {
-          const k = (c.uid || "") + "::" + (c.imdb_id || "");
-          if (seen.has(k)) return false;
-          seen.add(k);
-          return true;
-        });
-
-      const lines = uniq.map((c, i) => {
-        const tt   = c.title || "-";
-        const yy   = (c.year != null ? String(c.year) : "s/f");
-        const imdb = c.imdb_id ? ` — IMDb: ${c.imdb_id}` : "";
-        const uid  = c.uid ? ` — UID: ${c.uid}` : "";
-        return `${i + 1}. ${tt} (${yy})${uid}${imdb}`;
-      });
-
-      const out = [head, "", ...lines].join("\n");
-      addMsg({ html: renderAssistant(out) });
+      addMsg({ html: renderAssistant((data?.text || "").trim()) });
       return;
     }
 
-    // Render texto normal
+    // Respuesta normal
     let answer = (data?.text ?? "").trim();
     if(!answer) answer = (getLang()==="es" ? "No tengo respuesta para eso todavía." : "I don't have an answer for that yet.");
-    addMsg({html: renderAssistant(answer)});
+    addMsg({ html: renderAssistant(answer) });
 
-  }catch(e){
+  } catch (e) {
     console.error(e);
     removeTyping();
-    addMsg({html:`<i>${I18N[getLang()].errorConnect}</i>`});
+    const msg = (e && e.name === 'AbortError')
+        ? (getLang()==="es" ? "Tiempo de espera agotado. Intenta de nuevo." : "Request timed out. Try again.")
+        : (getLang()==="es" ? `Error al conectar: ${String(e).slice(0,200)}` : `Connection error: ${String(e).slice(0,200)}`);
+    addMsg({ html: `<i>${escapeHtml(msg)}</i>` });
+  } finally {
+    clearTimeout(to);
   }
 }
 
@@ -696,3 +696,4 @@ input.addEventListener("input", ()=>{
 </script>
 </body>
 </html>
+
