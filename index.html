@@ -631,7 +631,7 @@ async function sendMessage(){
   // === BLOQUE NUEVO (timeout + content-type + errores legibles) ===
   addTyping();
   const controller = new AbortController();
-  const TIMEOUT_MS = 25000;
+  const TIMEOUT_MS = 60000;
   const to = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
@@ -696,4 +696,5 @@ input.addEventListener("input", ()=>{
 </script>
 </body>
 </html>
+
 
