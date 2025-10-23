@@ -668,10 +668,24 @@ async function sendMessage(){
       return;
     }
 
-    // Respuesta normal
-    let answer = (data?.text ?? "").trim();
-    if(!answer) answer = (getLang()==="es" ? "No tengo respuesta para eso todavía." : "I don't have an answer for that yet.");
-    addMsg({ html: renderAssistant(answer) });
+// === NUEVO BLOQUE PARA COMPATIBILIDAD CON FORMATO STRANDS ===
+let answer = "";
+
+if (data?.answer) {
+  answer = String(data.answer).trim();
+} else if (data?.text) {
+  answer = String(data.text).trim(); // compatibilidad con viejo determinista
+} else if (typeof data === "string") {
+  answer = data.trim();
+}
+
+if (!answer) {
+  answer = (getLang()==="es"
+    ? "No tengo información suficiente para responder eso todavía."
+    : "I don't have enough information to answer that yet.");
+}
+
+addMsg({ html: renderAssistant(answer) });
 
   } catch (e) {
     console.error(e);
@@ -696,4 +710,5 @@ input.addEventListener("input", ()=>{
 </script>
 </body>
 </html>
+
 
