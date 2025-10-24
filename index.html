@@ -685,6 +685,10 @@ if (!answer) {
     : "I don't have enough information to answer that yet.");
 }
 
+if (data?.status && data?.status !== "success") {
+  addMsg({ html: `<i>(${escapeHtml(data.status)})</i>` });
+}
+    
 addMsg({ html: renderAssistant(answer) });
 
   } catch (e) {
@@ -710,5 +714,6 @@ input.addEventListener("input", ()=>{
 </script>
 </body>
 </html>
+
 
 
