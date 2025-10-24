@@ -619,6 +619,7 @@ async function sendMessage(){
   }
 
   // payload normal
+  session.ensureSessionId();
   const payload = {
     message: msg,
     language: getLang(),
@@ -714,6 +715,7 @@ input.addEventListener("input", ()=>{
 </script>
 </body>
 </html>
+
 
 
 
