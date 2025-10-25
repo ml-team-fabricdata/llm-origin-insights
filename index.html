@@ -663,10 +663,11 @@ async function sendMessage(){
     // persist last uid if server provides it
     if (data?.selected_uid){ session.lastUid = data.selected_uid; }
 
-    // Desambiguación: mostramos solo el texto que formatea el backend
+    // === Desambiguación: mostrar correctamente la lista devuelta por Strands ===
     if (data?.step === 'disambiguation') {
-      addMsg({ html: renderAssistant((data?.text || "").trim()) });
-      return;
+    const text = data?.answer || data?.text || "";
+    addMsg({ html: renderAssistant(text.trim()) });
+    return;
     }
 
 // === NUEVO BLOQUE PARA COMPATIBILIDAD CON FORMATO STRANDS ===
@@ -715,6 +716,7 @@ input.addEventListener("input", ()=>{
 </script>
 </body>
 </html>
+
 
 
 
