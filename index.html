@@ -544,11 +544,11 @@ async function ensureSession(){
   $("#sidBox").textContent = session.sessionId || "—";
 
   // Saludo inicial una sola vez
-  if (!sessionStorage.getItem("greeted")) {
-    const firstName = claims.given_name || (claims.name||"").split(" ")[0] || "";
-    addMsg({html: I18N[getLang()].greet(firstName)});
-    sessionStorage.setItem("greeted","1");
-  }
+  //if (!sessionStorage.getItem("greeted")) {
+    //const firstName = claims.given_name || (claims.name||"").split(" ")[0] || "";
+    //addMsg({html: I18N[getLang()].greet(firstName)});
+    //sessionStorage.setItem("greeted","1");
+  //}
 
   // Cargar API base guardada
   $("#apiBase").value = session.apiBase;
@@ -715,6 +715,7 @@ input.addEventListener("input", ()=>{
 </script>
 </body>
 </html>
+
 
 
 
