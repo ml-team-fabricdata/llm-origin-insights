@@ -655,43 +655,42 @@ async function sendMessage(){
 
     removeTyping();
 
-    // persist session id returned
+    // === Persistencia de sesión y UID ===
     if (data?.session_id){
       localStorage.setItem(session.sessionIdKey, data.session_id);
       $("#sidBox").textContent = data.session_id;
     }
-    // persist last uid if server provides it
     if (data?.selected_uid){ session.lastUid = data.selected_uid; }
 
-    // === Desambiguación: mostrar correctamente la lista devuelta por Strands ===
-    if (data?.step === 'disambiguation') {
-    const text = data?.answer || data?.text || "";
-    addMsg({ html: renderAssistant(text.trim()) });
-    return;
+    // === NUEVO: Manejo correcto de desambiguación ===
+    if (data?.step === "disambiguation" || data?.status === "ambiguous") {
+      const text = data?.answer || data?.text || "";
+      addMsg({ html: renderAssistant(text.trim()) });
+      return;
     }
 
-// === NUEVO BLOQUE PARA COMPATIBILIDAD CON FORMATO STRANDS ===
-let answer = "";
+    // === Manejo general de respuesta ===
+    let answer = "";
 
-if (data?.answer) {
-  answer = String(data.answer).trim();
-} else if (data?.text) {
-  answer = String(data.text).trim(); // compatibilidad con viejo determinista
-} else if (typeof data === "string") {
-  answer = data.trim();
-}
+    if (data?.answer) {
+      answer = String(data.answer).trim();
+    } else if (data?.text) {
+      answer = String(data.text).trim();
+    } else if (typeof data === "string") {
+      answer = data.trim();
+    }
 
-if (!answer) {
-  answer = (getLang()==="es"
-    ? "No tengo información suficiente para responder eso todavía."
-    : "I don't have enough information to answer that yet.");
-}
+    if (!answer) {
+      answer = (getLang()==="es"
+        ? "No tengo información suficiente para responder eso todavía."
+        : "I don't have enough information to answer that yet.");
+    }
 
-if (data?.status && data?.status !== "success") {
-  addMsg({ html: `<i>(${escapeHtml(data.status)})</i>` });
-}
-    
-addMsg({ html: renderAssistant(answer) });
+    if (data?.status && data?.status !== "success") {
+      addMsg({ html: `<i>(${escapeHtml(data.status)})</i>` });
+    }
+
+    addMsg({ html: renderAssistant(answer) });
 
   } catch (e) {
     console.error(e);
@@ -703,7 +702,7 @@ addMsg({ html: renderAssistant(answer) });
   } finally {
     clearTimeout(to);
   }
-}
+
 
 sendBtn.onclick = sendMessage;
 input.addEventListener("keydown",(e)=>{
@@ -716,6 +715,7 @@ input.addEventListener("input", ()=>{
 </script>
 </body>
 </html>
+
 
 
 
