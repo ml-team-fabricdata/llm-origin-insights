@@ -1,718 +1,640 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <title>Fabric LLM</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Chat</title>
   <style>
-    :root{
-      /* Fabric Brand Colors */
-      --fabric-red: #DA344A;
-      --fabric-dark: #171A1F;
-      --fabric-purple: #7600BF;
-      --fabric-pink: #F11E5A;
-      --fabric-orange: #F75830;
-
-      /* UI Colors based on Fabric palette */
-      --bg: #0f0f0f;
-      --panel: var(--fabric-dark);
-      --card: #1a1d23;
-      --text: #ffffff;
-      --text-secondary: #a1a1aa;
-      --text-muted: #71717a;
-      --accent: var(--fabric-red);
-      --accent-hover: #c12d42;
-      --border: #27272a;
-      --border-light: #3f3f46;
-      --bubble-user: var(--fabric-red);
-      --bubble-assistant: var(--card);
-      --input-bg: #18181b;
-      --gradient-bg: linear-gradient(135deg, var(--fabric-purple) 0%, var(--fabric-pink) 50%, var(--fabric-orange) 100%);
+    /* Reset and base styles */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
-    * { box-sizing: border-box; }
-    html, body { height: 100%; margin: 0; padding: 0; }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 14px;
-      line-height: 1.5;
+    :root {
+      --bg-primary: #343541;
+      --bg-secondary: #444654;
+      --bg-input: #40414f;
+      --text-primary: #ececf1;
+      --text-secondary: #c5c5d2;
+      --accent-color: #10a37f;
+      --accent-hover: #1a7f64;
+      --error-color: #ef4444;
+      --border-color: #565869;
+      --user-bubble: #2a2b32;
+      --assistant-bubble: #444654;
     }
 
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-
-    .layout { display: grid; grid-template-columns: 320px 1fr; height: 100vh; }
-    @media (max-width: 920px) {
-      .layout { grid-template-columns: 1fr; }
-      .sidebar {
-        position: fixed; inset: 0 30% 0 0;
-        transform: translateX(-100%);
-        transition: transform 0.3s ease; z-index: 40;
-        box-shadow: 0 0 20px rgba(0,0,0,0.5);
-      }
-      .sidebar.open { transform: none; }
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
     }
 
-    .sidebar {
-      background: var(--panel);
-      border-right: 1px solid var(--border);
-      padding: 24px; overflow-y: auto;
-      display: flex; flex-direction: column;
+    /* Main container */
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-width: 900px;
+      margin: 0 auto;
     }
 
-    .sidebar-header {
-      display: flex; align-items: center; gap: 12px;
-      margin-bottom: 32px; padding-bottom: 24px;
-      border-bottom: 1px solid var(--border);
-    }
-    .sidebar-header img { width: 40px; height: 40px; }
-    .sidebar-header .brand {
-      font-weight: 700; font-size: 18px;
-      background: var(--gradient-bg);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
+    /* Header */
+    .chat-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border-color);
+      text-align: center;
     }
 
-    .sidebar h2 {
-      font-size: 12px; font-weight: 600;
-      color: var(--text-muted); margin: 24px 0 12px 0;
-      text-transform: uppercase; letter-spacing: 0.5px;
+    .chat-header h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-primary);
     }
-    .sidebar h2:first-of-type { margin-top: 0; }
 
-    .sidebar .row { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
-    .sidebar input[type=text]{
-      width: 100%; background: var(--input-bg);
-      border: 1px solid var(--border); border-radius: 8px;
-      padding: 10px 12px; color: var(--text); font-size: 14px;
+    /* Messages area */
+    .messages-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 16px;
+      scroll-behavior: smooth;
+    }
+
+    .message {
+      display: flex;
+      gap: 16px;
+      padding: 16px 24px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      max-width: 100%;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user {
+      background-color: var(--user-bubble);
+    }
+
+    .message.assistant {
+      background-color: var(--assistant-bubble);
+    }
+
+    .message.error {
+      background-color: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--error-color);
+    }
+
+    /* Avatar */
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+
+    .avatar.user {
+      background-color: var(--accent-color);
+      color: white;
+    }
+
+    .avatar.assistant {
+      background-color: #9b59b6;
+      color: white;
+    }
+
+    .avatar.error {
+      background-color: var(--error-color);
+      color: white;
+    }
+
+    /* Message content */
+    .message-content {
+      flex: 1;
+      line-height: 1.6;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .message-content p {
+      margin-bottom: 8px;
+    }
+
+    .message-content p:last-child {
+      margin-bottom: 0;
+    }
+
+    /* Clarification options */
+    .options-list {
+      margin-top: 12px;
+      padding: 12px;
+      background-color: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+    }
+
+    .options-list-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    .option-item {
+      padding: 8px 12px;
+      margin: 4px 0;
+      background-color: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .option-item:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .option-number {
+      color: var(--accent-color);
+      font-weight: 600;
+      margin-right: 8px;
+    }
+
+    .option-year {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    /* Loading indicator */
+    .loading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .loading-dots {
+      display: flex;
+      gap: 4px;
+    }
+
+    .loading-dots span {
+      width: 8px;
+      height: 8px;
+      background-color: var(--text-secondary);
+      border-radius: 50%;
+      animation: bounce 1.4s infinite ease-in-out both;
+    }
+
+    .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1); }
+    }
+
+    /* Input area */
+    .input-container {
+      padding: 16px 24px 24px;
+      background-color: var(--bg-primary);
+      border-top: 1px solid var(--border-color);
+    }
+
+    .input-wrapper {
+      display: flex;
+      gap: 12px;
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px 16px;
       transition: border-color 0.2s;
     }
-    .sidebar input[type=text]:focus { outline: none; border-color: var(--accent); }
-    .sidebar button {
-      background: var(--input-bg); border: 1px solid var(--border);
-      border-radius: 8px; padding: 10px 16px; color: var(--text);
-      cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s;
+
+    .input-wrapper:focus-within {
+      border-color: var(--accent-color);
     }
-    .sidebar button:hover { background: var(--border); border-color: var(--border-light); }
 
-    .sidebar .small { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+    .input-wrapper.disabled {
+      opacity: 0.6;
+      pointer-events: none;
+    }
 
-    .user-info { display: flex; align-items: center; gap: 12px; padding: 12px;
-      background: var(--input-bg); border-radius: 12px; margin-bottom: 8px; }
-    .user-info img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
-    .user-info .details { flex: 1; min-width: 0; }
-    .user-info .name { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
-    .user-info .email { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #message-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-size: 1rem;
+      line-height: 1.5;
+      resize: none;
+      outline: none;
+      font-family: inherit;
+      max-height: 150px;
+    }
 
-    .sid-row { display:flex; align-items:center; gap:8px; }
-    .sid-box { background: var(--input-bg); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas; font-size:12px; color:var(--text-secondary); overflow:auto; }
+    #message-input::placeholder {
+      color: var(--text-secondary);
+    }
 
-    .toggle { display: none; }
-    @media (max-width: 920px) {
-      .toggle {
-        display: flex; position: fixed; z-index: 50; top: 16px; left: 16px;
-        background: var(--panel); border: 1px solid var(--border);
-        border-radius: 8px; padding: 8px; color: var(--text);
-        cursor: pointer; align-items: center; justify-content: center;
-        width: 40px; height: 40px;
+    #send-button {
+      background-color: var(--accent-color);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      align-self: flex-end;
+    }
+
+    #send-button:hover:not(:disabled) {
+      background-color: var(--accent-hover);
+    }
+
+    #send-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .input-hint {
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 8px;
+    }
+
+    /* Welcome message */
+    .welcome-message {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--text-secondary);
+    }
+
+    .welcome-message h2 {
+      font-size: 1.5rem;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .welcome-message p {
+      font-size: 0.95rem;
+    }
+
+    /* Scrollbar styling */
+    .messages-container::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .messages-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .messages-container::-webkit-scrollbar-thumb {
+      background-color: var(--border-color);
+      border-radius: 4px;
+    }
+
+    .messages-container::-webkit-scrollbar-thumb:hover {
+      background-color: var(--text-secondary);
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 640px) {
+      .message {
+        padding: 12px 16px;
+        gap: 12px;
+      }
+
+      .avatar {
+        width: 32px;
+        height: 32px;
+        font-size: 0.75rem;
+      }
+
+      .input-container {
+        padding: 12px 16px 16px;
       }
     }
-
-    .main { display: flex; flex-direction: column; height: 100vh; background: var(--bg); }
-    .main-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 24px; border-bottom: 1px solid var(--border);
-      background: var(--bg); position: sticky; top: 0; z-index: 10;
-    }
-
-    .main-header .logo-section { display: flex; align-items: center; gap: 12px; }
-    .main-header .product-logo { width: 32px; height: 32px; border-radius: 50%; }
-    .main-header .title { font-weight: 600; font-size: 16px; }
-    .main-header .controls { display: flex; align-items: center; gap: 12px; }
-
-    .lang-selector {
-      background: var(--input-bg); color: var(--text);
-      border: 1px solid var(--border); border-radius: 6px;
-      padding: 6px 10px; font-size: 12px; cursor: pointer;
-    }
-
-    .chat { flex: 1; overflow-y: auto; padding: 24px; scroll-behavior: smooth; }
-    .chat::-webkit-scrollbar { width: 6px; }
-    .chat::-webkit-scrollbar-track { background: transparent; }
-    .chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-    .msg { max-width: 768px; margin: 0 auto 24px; display: flex; gap: 16px; align-items: flex-start; }
-    .msg.you { flex-direction: row-reverse; }
-    .msg .avatar { width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; }
-    .msg .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-    .msg .avatar.bot { background: var(--gradient-bg); color: white; }
-
-    .msg .bubble {
-      padding: 16px 20px; border-radius: 18px; max-width: 100%; word-wrap: break-word;
-      line-height: 1.6; font-size: 14px;
-    }
-    .msg:not(.you) .bubble { background: var(--bubble-assistant); border: 1px solid var(--border); border-top-left-radius: 4px; }
-    .msg.you .bubble { background: var(--bubble-user); color: white; border-top-right-radius: 4px; }
-    .msg .bubble b { font-weight: 600; }
-
-    .typing { opacity: 0.7; font-style: italic; }
-
-    .footer { padding: 24px; border-top: 1px solid var(--border); background: var(--bg); }
-    .composer { max-width: 768px; margin: 0 auto; display: flex; gap: 12px; align-items: flex-end; }
-    .input-container { flex: 1; position: relative; }
-
-    textarea {
-      width: 100%; background: var(--input-bg); border: 1px solid var(--border);
-      border-radius: 12px; padding: 16px 20px; color: var(--text);
-      font-size: 14px; line-height: 1.5; resize: none; min-height: 52px; max-height: 200px;
-      font-family: inherit; transition: border-color 0.2s;
-    }
-    textarea:focus { outline: none; border-color: var(--accent); }
-    textarea::placeholder { color: var(--text-muted); }
-
-    .send {
-      background: var(--accent); border: 0; color: white; border-radius: 12px;
-      padding: 16px 20px; font-weight: 600; cursor: pointer; font-size: 14px;
-      transition: background-color 0.2s; height: 52px; display: flex; align-items: center; justify-content: center;
-    }
-    .send:hover { background: var(--accent-hover); }
-    .send:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    .tip { max-width: 768px; margin: 12px auto 0; color: var(--text-muted); font-size: 12px; text-align: center; line-height: 1.4; }
-    .hidden { display: none; }
   </style>
 </head>
 <body>
-<button class="toggle" id="btnSidebar">
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-    <line x1="3" y1="6" x2="21" y2="6"></line>
-    <line x1="3" y1="12" x2="21" y2="12"></line>
-    <line x1="3" y1="18" x2="21" y2="18"></line>
-  </svg>
-</button>
-
-<div class="layout">
-  <aside class="sidebar" id="sidebar">
+  <div class="chat-container">
     <!-- Header -->
-    <div class="sidebar-header">
-      <img src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo_company-zTicNXkHyb0uvaEHgcpcXdk0tWMgqo.png" alt="Fabric Logo">
-      <div class="brand">Fabric LLM</div>
-    </div>
-
-    <h2 id="hSession">Sesión</h2>
-    <div class="user-info">
-      <img id="avatarSide" src="/placeholder.svg" alt="avatar">
-      <div class="details">
-        <div id="nameSide" class="name">—</div>
-        <div id="emailSide" class="email">—</div>
-      </div>
-    </div>
-
-    <div class="sid-row">
-      <div id="sidLabel" style="font-size:12px;color:var(--text-muted);min-width:70px;">Session ID</div>
-      <div id="sidBox" class="sid-box" style="flex:1;">—</div>
-      <button id="btnCopySid" class="cand-btn" title="Copy">⧉</button>
-    </div>
-
-    <h2 id="hApi" style="margin-top:24px">API base</h2>
-    <div class="row">
-      <input id="apiBase" type="text" placeholder="https://&lt;apprunner&gt;.awsapprunner.com">
-    </div>
-    <div class="row">
-      <button id="btnSave">Guardar</button>
-      <button id="btnPing">Ping</button>
-    </div>
-    <div id="pingOut" class="small" style="margin-top: 8px;">—</div>
-
-    <h2 id="hActions" style="margin-top:24px">Acciones</h2>
-    <div class="row">
-      <button id="btnLogout" style="width:100%">Salir</button>
-    </div>
-    <div id="tokensNote" class="small" style="margin-top: 8px;">Tokens se guardan en sessionStorage.</div>
-
-    <h2 id="hAbout" style="margin-top:24px">Acerca</h2>
-    <div id="aboutText" class="small">Interfaz de chat para Origin Insights LLM.</div>
-  </aside>
-
-  <section class="main">
-    <!-- Header -->
-    <header class="main-header">
-      <div class="logo-section">
-        <img src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo_product-TNCONyzXY4NagIrQRZxUaevcEwLGtZ.png" alt="Product Logo" class="product-logo">
-        <div class="title">Origin Insights</div>
-      </div>
-      <div class="controls">
-        <select id="selLang" class="lang-selector">
-          <option value="es">ES</option>
-          <option value="en">EN</option>
-        </select>
-      </div>
+    <header class="chat-header">
+      <h1>🎬 Asistente de Películas</h1>
     </header>
 
-    <div class="chat" id="chat"></div>
-
-    <div class="footer">
-      <div class="composer">
-        <div class="input-container">
-          <textarea id="input" placeholder="Escribe tu consulta… (Shift+Enter = nueva línea)" rows="1"></textarea>
-        </div>
-        <button class="send" id="btnSend">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="22" y1="2" x2="11" y2="13"></line>
-            <polygon points="22,2 15,22 11,13 2,9 22,2"></polygon>
-          </svg>
-        </button>
+    <!-- Messages area -->
+    <main class="messages-container" id="messages-container">
+      <div class="welcome-message" id="welcome-message">
+        <h2>¡Hola! 👋</h2>
+        <p>Soy tu asistente de películas. Pregúntame dónde ver una película, información sobre actores, directores y más.</p>
       </div>
-      <div id="tip" class="tip">Consejo: puedes escribir un título ("Conclave 2024"), pedir dónde ver en un país, o consultar popularidad (HITS).</div>
-    </div>
-  </section>
-</div>
+    </main>
 
-<script>
-/** =========================
- *  I18N
- *  ========================= */
-const I18N = {
-  es: {
-    session: "Sesión",
-    sessionId: "ID de sesión",
-    copy: "Copiar",
-    copied: "Copiado",
-    apiBase: "API base",
-    save: "Guardar",
-    ping: "Ping",
-    saved: "Guardado.",
-    pinging: "→ Ping…",
-    pingErr: "Error de red",
-    actions: "Acciones",
-    logout: "Salir",
-    tokensNote: "Los tokens se guardan en sessionStorage.",
-    about: "Acerca",
-    aboutText: "Interfaz de chat para Origin Insights LLM.",
-    placeholder: "Escribe tu consulta… (Shift+Enter = nueva línea)",
-    send: "Enviar",
-    tip: "Tip: prueba un título (\"Conclave 2024 en Argentina\"), pide dónde ver en un país o consulta popularidad (HITS).",
-    typing: "Escribiendo…",
-    greet: (name)=> `¡Hola ${escapeHtml(name||"")}! Soy el asistente virtual de Fabric Data. Te ayudo a explorar disponibilidad (por país/plataforma), popularidad (HITS) y metadatos. ¿Qué te gustaría descubrir hoy?`,
-    identity: "Soy el asistente virtual de Fabric Data. Funcionamiento determinista (SQL-first) sobre Origin Insights.",
-    needApi: "Configura la API base en la barra lateral.",
-    errorConnect: "Ocurrió un error al conectar con el servicio.",
-    // Textos por si se usan en otros lados (el backend ya provee el copy)
-    disambigTitle: "Encontré varios contenidos con ese título",
-    disambigHint: "Puedes indicar el número, decir «el primero», o proveer el año/UID/IMDb."
-  },
-  en: {
-    session: "Session",
-    sessionId: "Session ID",
-    copy: "Copy",
-    copied: "Copied",
-    apiBase: "API base",
-    save: "Save",
-    ping: "Ping",
-    saved: "Saved.",
-    pinging: "→ Pinging…",
-    pingErr: "Network error",
-    actions: "Actions",
-    logout: "Sign out",
-    tokensNote: "Tokens are stored in sessionStorage.",
-    about: "About",
-    aboutText: "Chat interface for Origin Insights LLM.",
-    placeholder: "Type your query… (Shift+Enter = new line)",
-    send: "Send",
-    tip: "Tip: try a title (\"Conclave 2024 in Argentina\"), ask where to watch in a country, or check popularity (HITS).",
-    typing: "Typing…",
-    greet: (name)=> `Hi ${escapeHtml(name||"")}! I'm Fabric Data's virtual assistant. I help you explore availability (by country/platform), popularity (HITS), and metadata. What would you like to discover today?`,
-    identity: "I'm Fabric Data's virtual assistant. Deterministic (SQL-first) operation over Origin Insights.",
-    needApi: "Set the API base in the sidebar.",
-    errorConnect: "There was an error connecting to the service.",
-    disambigTitle: "I found several titles with that name",
-    disambigHint: "You can reply with the number, say “the first”, or provide year/UID/IMDb."
-  }
-};
-function getLang(){ return localStorage.getItem("uiLang") || "es"; }
-function setLang(l){ localStorage.setItem("uiLang", l); }
+    <!-- Input area -->
+    <footer class="input-container">
+      <div class="input-wrapper" id="input-wrapper">
+        <textarea
+          id="message-input"
+          placeholder="Escribe tu mensaje..."
+          rows="1"
+          aria-label="Escribe tu mensaje"
+        ></textarea>
+        <button id="send-button" aria-label="Enviar mensaje">Enviar</button>
+      </div>
+      <p class="input-hint">Presiona Enter para enviar o Shift+Enter para nueva línea</p>
+    </footer>
+  </div>
 
-/** =========================
- *  CONFIG DE AUTENTICACIÓN (Cognito PKCE)
- *  ========================= */
-const cognitoDomain = "fabric-llm-auth.auth.us-east-1.amazoncognito.com";
-const clientId      = "2i965jqbq7hh1l5im6fl221m0l";
-const redirectUri   = "https://ml-team-fabricdata.github.io/llm-origin-insights/";
+  <script>
+    // ====================
+    // Configuration
+    // ====================
+    const API_URL = 'https://9sv3yqz0r4.execute-api.us-east-1.amazonaws.com/ask';
+    const LANGUAGE = 'es';
+    const SESSION_KEY = 'chat_session_id';
 
-const scopes        = ["openid","email","profile"];
-const authzEndpoint = `https://${cognitoDomain}/oauth2/authorize`;
-const tokenEndpoint = `https://${cognitoDomain}/oauth2/token`;
-const userInfoEP    = `https://${cognitoDomain}/oauth2/userInfo`;
+    // ====================
+    // State
+    // ====================
+    let isLoading = false;
 
-/** =========================
- *  UI helpers
- *  ========================= */
-const $ = s => document.querySelector(s);
-const chat = $("#chat");
-const input = $("#input");
-const sendBtn = $("#btnSend");
-const langSel = $("#selLang");
-const sidebar = $("#sidebar");
-$("#btnSidebar").onclick = ()=> sidebar.classList.toggle("open");
+    // ====================
+    // DOM Elements
+    // ====================
+    const messagesContainer = document.getElementById('messages-container');
+    const welcomeMessage = document.getElementById('welcome-message');
+    const messageInput = document.getElementById('message-input');
+    const sendButton = document.getElementById('send-button');
+    const inputWrapper = document.getElementById('input-wrapper');
 
-function escapeHtml(str=""){
-  return (str+"").replace(/[&<>"]/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" }[m]));
-}
-function normalizeTags(text=""){
-  // elimina <result>/<answer>/<output>
-  const wrap = text.match(/^\s*<(result|answer|output)>\s*([\s\S]*?)\s*<\/\1>\s*$/i);
-  let s = wrap ? wrap[2] : text;
-  return s.replace(/<\/?(?:result|answer|output)\s*>/gi, "").trim();
-}
-function linkify(s){
-  return s.replace(/https?:\/\/[^\s)<>\"]+/g, url=>`<a href="${url}" target="_blank" rel="noopener">${url}</a>`);
-}
-function renderAssistant(text){
-  const clean = normalizeTags(text||"");
-  let html = escapeHtml(clean);
-  html = html.replace(/\*\*(.*?)\*\*/g, "<b>$1<\/b>");
-  html = linkify(html);
-  html = html.replace(/\n/g,"<br>");
-  return html;
-}
-function addMsg({role="assistant", html=""}){
-  const row = document.createElement("div");
-  row.className = "msg " + (role==="user"?"you":"");
-  row.innerHTML = `
-    <div class="avatar ${role==="user"?"":"bot"}">
-      ${role==="user"
-        ? `<img src="${escapeHtml(session.profile?.picture || fallbackAvatar(session.profile?.name || session.profile?.email))}" alt="u">`
-        : `F`
+    // ====================
+    // Session Management
+    // ====================
+
+    /**
+     * Gets or creates a session ID stored in localStorage
+     * @returns {string} The session ID
+     */
+    function getSessionId() {
+      let sessionId = localStorage.getItem(SESSION_KEY);
+      if (!sessionId) {
+        // Generate a unique session ID
+        sessionId = 'web-session-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+        localStorage.setItem(SESSION_KEY, sessionId);
       }
-    </div>
-    <div class="bubble">${html}</div>`;
-  chat.appendChild(row);
-  chat.scrollTop = chat.scrollHeight;
-}
-function addTyping(){
-  const row = document.createElement("div");
-  row.className = "msg";
-  row.id = "typing";
-  const lang = getLang();
-  row.innerHTML = `
-    <div class="avatar bot">F</div>
-    <div class="bubble typing">${I18N[lang].typing}</div>`;
-  chat.appendChild(row);
-  chat.scrollTop = chat.scrollHeight;
-}
-function removeTyping(){
-  const t = $("#typing"); if(t) t.remove();
-}
-
-/** =========================
- *  Auth (PKCE)
- *  ========================= */
-function b64url(arr){return btoa(String.fromCharCode(...new Uint8Array(arr))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
-function randomString(len=64){const r=new Uint8Array(len);crypto.getRandomValues(r);return Array.from(r).map(b=>("0"+b.toString(16)).slice(-2)).join("")}
-async function sha256Buf(str){const enc=new TextEncoder();return await crypto.subtle.digest("SHA-256", enc.encode(str))}
-
-function parseJwt(t){try{const p=t.split(".")[1];return JSON.parse(atob(p.replace(/-/g,"+").replace(/_/g,"/")));}catch{ return {}; }}
-
-async function login({prompt}={}){
-  const verifier = randomString(64);
-  const challenge = b64url(await sha256Buf(verifier));
-  sessionStorage.setItem("pkce_verifier", verifier);
-
-  const url = new URL(authzEndpoint);
-  url.searchParams.set("client_id", clientId);
-  url.searchParams.set("response_type", "code");
-  url.searchParams.set("redirect_uri", redirectUri);
-  url.searchParams.set("scope", scopes.join(" "));
-  url.searchParams.set("code_challenge_method","S256");
-  url.searchParams.set("code_challenge", challenge);
-  if (prompt) url.searchParams.set("prompt", prompt);
-  window.location.assign(url.toString());
-}
-async function exchangeCode(code){
-  const verifier = sessionStorage.getItem("pkce_verifier"); if(!verifier) throw new Error("No PKCE verifier");
-  const body = new URLSearchParams();
-  body.set("grant_type","authorization_code");
-  body.set("client_id", clientId);
-  body.set("redirect_uri", redirectUri);
-  body.set("code_verifier", verifier);
-  body.set("code", code);
-  const resp = await fetch(tokenEndpoint,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body});
-  if(!resp.ok) throw new Error("Token exchange failed");
-  const tok = await resp.json();
-  sessionStorage.setItem("id_token", tok.id_token);
-  sessionStorage.setItem("access_token", tok.access_token);
-  if(tok.refresh_token) sessionStorage.setItem("refresh_token", tok.refresh_token);
-  const clean = new URL(location.href); clean.searchParams.delete("code"); clean.searchParams.delete("state"); history.replaceState({},"",clean.toString());
-}
-async function fetchUserInfo(){
-  const at = sessionStorage.getItem("access_token"); if(!at) return null;
-  const r = await fetch(userInfoEP,{headers:{Authorization:`Bearer ${at}`}}); if(!r.ok) return null;
-  return await r.json();
-}
-function fallbackAvatar(text){
-  const label = (text||"User").trim().slice(0,2).toUpperCase();
-  return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(label)}&backgroundColor=b6e3f4&radius=50`;
-}
-
-/** =========================
- *  App state
- *  ========================= */
-const session = {
-  profile:null,
-  get apiBase(){ return localStorage.getItem("apiBase") || ""; },
-  set apiBase(v){ localStorage.setItem("apiBase", v||""); },
-  get sessionIdKey(){ return `session_id:${session.profile?.sub||"anon"}`; },
-  get sessionId(){ return localStorage.getItem(session.sessionIdKey) || ""; },
-  ensureSessionId(){ if(!session.sessionId){ const id=crypto.randomUUID(); localStorage.setItem(session.sessionIdKey,id);} },
-  // último UID seleccionado por usuario
-  get lastUidKey(){ return `last_uid:${session.profile?.sub||"anon"}`; },
-  get lastUid(){ return localStorage.getItem(session.lastUidKey) || ""; },
-  set lastUid(v){ if(v){ localStorage.setItem(session.lastUidKey, v); } }
-};
-
-/** =========================
- *  Boot + i18n apply
- *  ========================= */
-function applyI18N(){
-  const lang = getLang();
-  document.documentElement.lang = lang;
-
-  $("#hSession").textContent = I18N[lang].session;
-  $("#sidLabel").textContent = I18N[lang].sessionId;
-  $("#btnCopySid").title = I18N[lang].copy;
-  $("#hApi").textContent = I18N[lang].apiBase;
-  $("#btnSave").textContent = I18N[lang].save;
-  $("#btnPing").textContent = I18N[lang].ping;
-  $("#hActions").textContent = I18N[lang].actions;
-  $("#btnLogout").textContent = I18N[lang].logout;
-  $("#tokensNote").textContent = I18N[lang].tokensNote;
-  $("#hAbout").textContent = I18N[lang].about;
-  $("#aboutText").textContent = I18N[lang].aboutText;
-  $("#input").placeholder = I18N[lang].placeholder;
-  $("#tip").textContent = I18N[lang].tip;
-  $("#btnCopySid").textContent = "⧉"; // icon stays
-}
-langSel.addEventListener("change", ()=>{
-  setLang(langSel.value);
-  applyI18N();
-  addMsg({html: (getLang()==="es" ? "Idioma cambiado a español." : "Language switched to English.")});
-});
-
-/** =========================
- *  Saludo por prefijo (UX)
- *  ========================= */
-function normalizeNoAccents(s=""){
-  return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[.,!?]/g,'').trim();
-}
-function isGreetingPrefix(s=""){
-  const n = normalizeNoAccents(s);
-  if (n.length < 2 || n.length > 12) return false;
-  return n.startsWith("hol") || n.startsWith("buen") || n.startsWith("hi") || n.startsWith("hey") || n.startsWith("hello");
-}
-
-async function ensureSession(){
-  setLang(getLang());
-  applyI18N();
-
-  const url = new URL(location.href);
-  const code = url.searchParams.get("code");
-  let idToken = sessionStorage.getItem("id_token");
-  if(code && !idToken){ await exchangeCode(code); idToken = sessionStorage.getItem("id_token"); }
-
-  if(!idToken){ await login(); return; }
-
-  let claims = parseJwt(idToken);
-  if(!claims.picture || !claims.name || !claims.email){
-    const info = await fetchUserInfo();
-    if(info){ claims.picture=claims.picture||info.picture; claims.name=claims.name||info.name; claims.email=claims.email||info.email; }
-    if(!claims.picture && !sessionStorage.getItem("forced_consent_once")){
-      sessionStorage.setItem("forced_consent_once","1"); await login({prompt:"consent"}); return;
+      return sessionId;
     }
-  }
-  session.profile = claims;
-  session.ensureSessionId();
 
-  // Sidebar user info
-  $("#nameSide").textContent = claims.name || claims.given_name || (getLang()==="es"?"Usuario":"User");
-  $("#emailSide").textContent = claims.email || "";
-  $("#avatarSide").src = claims.picture || fallbackAvatar(claims.name || claims.email);
-  $("#sidBox").textContent = session.sessionId || "—";
+    // ====================
+    // UI Functions
+    // ====================
 
-  // Saludo inicial una sola vez
-  //if (!sessionStorage.getItem("greeted")) {
-    //const firstName = claims.given_name || (claims.name||"").split(" ")[0] || "";
-    //addMsg({html: I18N[getLang()].greet(firstName)});
-    //sessionStorage.setItem("greeted","1");
-  //}
+    /**
+     * Creates a message element
+     * @param {string} type - 'user', 'assistant', or 'error'
+     * @param {string} content - The message content (HTML allowed)
+     * @returns {HTMLElement} The message element
+     */
+    function createMessageElement(type, content) {
+      const message = document.createElement('div');
+      message.className = `message ${type}`;
 
-  // Cargar API base guardada
-  $("#apiBase").value = session.apiBase;
-}
-ensureSession().catch(e=>{console.error(e);});
+      const avatarText = type === 'user' ? 'Tú' : type === 'assistant' ? 'AI' : '!';
+      
+      message.innerHTML = `
+        <div class="avatar ${type}">${avatarText}</div>
+        <div class="message-content">${content}</div>
+      `;
 
-/** =========================
- *  Sidebar actions
- *  ========================= */
-$("#btnLogout").onclick = ()=>{
-  sessionStorage.clear(); // limpia greeted, tokens, etc.
-  const url = new URL(`https://${cognitoDomain}/logout`);
-  url.searchParams.set("client_id", clientId);
-  url.searchParams.set("logout_uri", redirectUri);
-  location.assign(url.toString());
-};
-$("#btnSave").onclick = ()=>{
-  session.apiBase = $("#apiBase").value.trim();
-  $("#pingOut").textContent = I18N[getLang()].saved;
-};
-$("#btnPing").onclick = async ()=>{
-  const base = (session.apiBase||"").replace(/\/+$/,"");
-  if(!base){ $("#pingOut").textContent = I18N[getLang()].needApi; return; }
-  $("#pingOut").textContent = I18N[getLang()].pinging;
-  try{
-    const r = await fetch(`${base}/healthz`, {method:"GET"});
-    const j = await r.json();
-    $("#pingOut").textContent = `ok:${j.ok} db:${j.db}`;
-  }catch(e){ $("#pingOut").textContent = I18N[getLang()].pingErr; }
-};
-$("#btnCopySid").onclick = async ()=>{
-  try{
-    await navigator.clipboard.writeText($("#sidBox").textContent.trim());
-    const old = $("#btnCopySid").textContent; $("#btnCopySid").textContent = I18N[getLang()].copied;
-    setTimeout(()=>$("#btnCopySid").textContent = old, 900);
-  }catch{}
-};
+      return message;
+    }
 
-/** =========================
- *  Chat logic
- *  ========================= */
-const GREETINGS = new Set([
-  "hola","buenas","buenas tardes","buenas noches","buen dia","buen día",
-  "hello","hi","hey","good morning","good afternoon","good evening","what's up","whats up","que tal","qué tal"
-]);
-const IDENTITY_RE = /(qu[ié]n eres|qu[eé] eres|who are you|what are you)/i;
+    /**
+     * Creates a loading indicator element
+     * @returns {HTMLElement} The loading element
+     */
+    function createLoadingElement() {
+      const message = document.createElement('div');
+      message.className = 'message assistant';
+      message.id = 'loading-message';
 
-async function sendMessage(){
-  const base = (session.apiBase||"").replace(/\/+$/,"");
-  const msg  = input.value.trim();
-  if(!base){ addMsg({html:`<i>${I18N[getLang()].needApi}</i>`}); return; }
-  if(!msg) return;
+      message.innerHTML = `
+        <div class="avatar assistant">AI</div>
+        <div class="message-content">
+          <div class="loading">
+            <div class="loading-dots">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        </div>
+      `;
 
-  addMsg({role:"user", html: escapeHtml(msg)});
-  input.value = "";
-  input.style.height = "auto";
+      return message;
+    }
 
-  // saludo / identidad local → no golpeamos API
-  const norm = normalizeNoAccents(msg);
-  if (GREETINGS.has(norm) || isGreetingPrefix(msg)) {
-    const firstName = session.profile?.given_name || (session.profile?.name||"").split(" ")[0] || "";
-    addMsg({html: I18N[getLang()].greet(firstName)});
-    return;
-  }
-  if (IDENTITY_RE.test(msg)) {
-    addMsg({html: I18N[getLang()].identity});
-    return;
-  }
+    /**
+     * Adds a message to the chat
+     * @param {string} type - 'user', 'assistant', or 'error'
+     * @param {string} content - The message content
+     */
+    function addMessage(type, content) {
+      // Hide welcome message on first message
+      if (welcomeMessage) {
+        welcomeMessage.style.display = 'none';
+      }
 
-  // payload normal
-  session.ensureSessionId();
-  const payload = {
-    message: msg,
-    language: getLang(),
-    session_id: session.sessionId || null,
-    user_id: session.profile?.sub || null,
-    user_name: session.profile?.given_name || session.profile?.name || null,
-    context_uid: session.lastUid || null
-  };
+      const messageElement = createMessageElement(type, content);
+      messagesContainer.appendChild(messageElement);
+      scrollToBottom();
+    }
 
-  // === BLOQUE NUEVO (timeout + content-type + errores legibles) ===
-  addTyping();
-  const controller = new AbortController();
-  const TIMEOUT_MS = 600000;
-  const to = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    /**
+     * Shows the loading indicator
+     */
+    function showLoading() {
+      const loadingElement = createLoadingElement();
+      messagesContainer.appendChild(loadingElement);
+      scrollToBottom();
+    }
 
-  try {
-    const resp = await fetch(`${base}/query`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json; charset=utf-8" },
-      body: JSON.stringify(payload),
-      signal: controller.signal
+    /**
+     * Hides the loading indicator
+     */
+    function hideLoading() {
+      const loadingElement = document.getElementById('loading-message');
+      if (loadingElement) {
+        loadingElement.remove();
+      }
+    }
+
+    /**
+     * Scrolls the messages container to the bottom
+     */
+    function scrollToBottom() {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    /**
+     * Enables or disables the input
+     * @param {boolean} disabled - Whether to disable the input
+     */
+    function setInputDisabled(disabled) {
+      isLoading = disabled;
+      messageInput.disabled = disabled;
+      sendButton.disabled = disabled;
+      inputWrapper.classList.toggle('disabled', disabled);
+    }
+
+    /**
+     * Formats the API response with clarification options if present
+     * @param {Object} data - The API response data
+     * @returns {string} Formatted HTML content
+     */
+    function formatResponse(data) {
+      let content = `<p>${escapeHtml(data.answer)}</p>`;
+
+      // Handle clarification options
+      if (data.needs_clarification && data.options && data.options.length > 0) {
+        content += `
+          <div class="options-list">
+            <div class="options-list-title">Selecciona una opción:</div>
+            ${data.options.map((option, index) => `
+              <div class="option-item" onclick="selectOption('${escapeHtml(option.title)} (${option.year})')">
+                <span class="option-number">${index + 1}.</span>
+                <span class="option-title">${escapeHtml(option.title)}</span>
+                <span class="option-year">(${option.year})</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      return content;
+    }
+
+    /**
+     * Escapes HTML special characters to prevent XSS
+     * @param {string} text - The text to escape
+     * @returns {string} Escaped text
+     */
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    /**
+     * Handles clicking on a clarification option
+     * @param {string} optionText - The selected option text
+     */
+    window.selectOption = function(optionText) {
+      messageInput.value = optionText;
+      messageInput.focus();
+      sendMessage();
+    };
+
+    // ====================
+    // API Functions
+    // ====================
+
+    /**
+     * Sends a message to the API
+     */
+    async function sendMessage() {
+      const question = messageInput.value.trim();
+      
+      if (!question || isLoading) {
+        return;
+      }
+
+      // Clear input and add user message
+      messageInput.value = '';
+      adjustTextareaHeight();
+      addMessage('user', `<p>${escapeHtml(question)}</p>`);
+
+      // Disable input and show loading
+      setInputDisabled(true);
+      showLoading();
+
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            question: question,
+            session_id: getSessionId(),
+            language: LANGUAGE
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error del servidor: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Hide loading and show response
+        hideLoading();
+        addMessage('assistant', formatResponse(data));
+
+      } catch (error) {
+        console.error('API Error:', error);
+        hideLoading();
+        addMessage('error', `<p>Lo siento, ocurrió un error al procesar tu mensaje. Por favor, intenta de nuevo.</p><p style="font-size: 0.875rem; color: var(--text-secondary);">${escapeHtml(error.message)}</p>`);
+      } finally {
+        setInputDisabled(false);
+        messageInput.focus();
+      }
+    }
+
+    /**
+     * Adjusts textarea height based on content
+     */
+    function adjustTextareaHeight() {
+      messageInput.style.height = 'auto';
+      messageInput.style.height = Math.min(messageInput.scrollHeight, 150) + 'px';
+    }
+
+    // ====================
+    // Event Listeners
+    // ====================
+
+    // Send button click
+    sendButton.addEventListener('click', sendMessage);
+
+    // Enter key to send (Shift+Enter for new line)
+    messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
     });
 
-    const ct = resp.headers.get("content-type") || "";
-    let data;
+    // Auto-resize textarea
+    messageInput.addEventListener('input', adjustTextareaHeight);
 
-    if (ct.includes("application/json")) {
-      data = await resp.json();
-    } else {
-      const txt = await resp.text();
-      throw new Error(`HTTP ${resp.status} ${resp.statusText} • ${txt.slice(0,200)}`);
-    }
-
-    removeTyping();
-
-    // persist session id returned
-    if (data?.session_id){
-      localStorage.setItem(session.sessionIdKey, data.session_id);
-      $("#sidBox").textContent = data.session_id;
-    }
-    // persist last uid if server provides it
-    if (data?.selected_uid){ session.lastUid = data.selected_uid; }
-
-    // === Desambiguación: mostrar correctamente la lista devuelta por Strands ===
-    if (data?.step === 'disambiguation') {
-    const text = data?.answer || data?.text || "";
-    addMsg({ html: renderAssistant(text.trim()) });
-    return;
-    }
-
-// === NUEVO BLOQUE PARA COMPATIBILIDAD CON FORMATO STRANDS ===
-let answer = "";
-
-if (data?.answer) {
-  answer = String(data.answer).trim();
-} else if (data?.text) {
-  answer = String(data.text).trim(); // compatibilidad con viejo determinista
-} else if (typeof data === "string") {
-  answer = data.trim();
-}
-
-if (!answer) {
-  answer = (getLang()==="es"
-    ? "No tengo información suficiente para responder eso todavía."
-    : "I don't have enough information to answer that yet.");
-}
-
-if (data?.status && data?.status !== "success") {
-  addMsg({ html: `<i>(${escapeHtml(data.status)})</i>` });
-}
-    
-addMsg({ html: renderAssistant(answer) });
-
-  } catch (e) {
-    console.error(e);
-    removeTyping();
-    const msg = (e && e.name === 'AbortError')
-        ? (getLang()==="es" ? "Tiempo de espera agotado. Intenta de nuevo." : "Request timed out. Try again.")
-        : (getLang()==="es" ? `Error al conectar: ${String(e).slice(0,200)}` : `Connection error: ${String(e).slice(0,200)}`);
-    addMsg({ html: `<i>${escapeHtml(msg)}</i>` });
-  } finally {
-    clearTimeout(to);
-  }
-}
-
-sendBtn.onclick = sendMessage;
-input.addEventListener("keydown",(e)=>{
-  if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendMessage(); }
-});
-input.addEventListener("input", ()=>{
-  input.style.height = "auto";
-  input.style.height = Math.min(200, input.scrollHeight) + "px";
-});
-</script>
+    // Focus input on page load
+    window.addEventListener('load', () => {
+      messageInput.focus();
+    });
+  </script>
 </body>
 </html>
